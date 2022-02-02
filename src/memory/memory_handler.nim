@@ -2,11 +2,14 @@ import tables
 import regex
 import options
 import strutils
-import asyncdispatch
+import encodings
+import strformat
 
 import winim
 
 import ../utils
+
+const max_string_len = 5000
 
 type MemoryHandler = ref object of RootObj
   symbol_table: Table[string, Table[string, ByteAddress]]
@@ -163,7 +166,7 @@ method read*[T](self: MemoryHandler, address: ByteAddress, t: typedesc[T]): T {.
 method write*[T](self: MemoryHandler, address: ByteAddress, val: T) {.base.} =
   ## Write typed value to memory. Does not work for strings/containers
   var buff = newString(sizeof(T))
-  cast[ptr T](buff[0])[] = val
+  cast[ptr T](addr buff[0])[] = val
   self.writeBytes(address, buff)
 
 method readNullTerminatedString*(self: MemoryHandler, address: ByteAddress, max_size: int = 20): string {.base.} =
@@ -198,15 +201,131 @@ method writeWideString*(self: MemoryHandler, address: ByteAddress, value: string
   let
     string_len_addr = address + 16
     old_len = self.read(string_len_addr, int32)
+    data = value
 
-  if value.len() >= 7 or old_len < 8:
-    let pointer_address = self.allocate(value.len())
+  if data.len() >= 7 and old_len < 8:
+    let pointer_address = self.allocate(data.len())
+    self.writeBytes(pointer_address, data & "\x00")
+    self.write(address, pointer_address)
+  elif data.len() >= 7 and old_len >= 8:
+    let pointer_address = self.read(address, ByteAddress)
+    self.writeBytes(pointer_address, data & "\x00")
+  else:
+    self.writeBytes(address, data & "\x00")
+
+  self.write(string_len_addr, data.len().int32)
+
+method readString*(self: MemoryHandler, address: ByteAddress): string {.base.} =
+  ## Read a string from memory
+  let string_len = self.read(address + 16, int32)
+  if not string_len > 0 or string_len > max_string_len:
+    return ""
+
+  var string_address = address
+  if string_len >= 16:
+    string_address = self.read(address, ByteAddress)
+
+  self.readBytes(string_address, string_len)
+
+method writeString*(self: MemoryHandler, address: ByteAddress, value: string) {.base.} =
+  ## Write a string to memory
+  let
+    string_len_addr = address + 16
+    string_len = value.len()
+    old_string_len = self.read(string_len_addr, int32)
+
+  if string_len >= 15 and old_string_len < 16:
+    let pointer_address = self.allocate(string_len + 1)
     self.writeBytes(pointer_address, value & "\x00")
     self.write(address, pointer_address)
-  elif value.len() >= 7 and old_len >= 8:
-    let pointer_address = self.read(address, ByteAddress)
-    self.writeBytes(pointer_address, value & "\x00")
-  else:
-    self.writeBytes(address, value & "\x00")
 
-  self.write(string_len_addr, value.len(), int32)
+method readVector*[T](self: MemoryHandler, address: ByteAddress, size: int, data_type: typedesc[T]): seq[T] {.base.} =
+  ## Read a vector from memory
+  # TODO: Check if this works. Uses some black magic
+  var
+    full_size = sizeof(T) * size
+    buff = self.readBytes(address, full_size)
+  var offset = 0
+  while offset < full_size:
+    result.add(cast[ptr T](addr buff[offset])[])
+    offset += sizeof(T)
+
+method writeVector*[T](self: MemoryHandler, address: ByteAddress, values: seq[T]) {.base.} =
+  ## Writes a vector. A list of containers will not work, unless their size is known at compiletime.
+  var offset = 0
+  for val in values:
+    self.write(address + offset, val)
+    offset += sizeof(T)
+
+method readXYZ*(self: MemoryHandler, address: ByteAddress): XYZ {.base.} =
+  ## Read XYZ from memory as a vector
+  let values = self.readVector(address, 3, float32)
+  XYZ(x : values[0], y : values[1], z : values[2])
+
+method writeXYZ*(self: MemoryHandler, address: ByteAddress, value: XYZ) {.base.} =
+  ## Write XYZ to memory as a vector
+  self.writeVector(address, @[value.x, value.y, value.z])
+
+method readSharedVector*(self: MemoryHandler, address: ByteAddress, max_count: int = 1000): seq[ByteAddress] {.base.} =
+  ## Read a shared vector from memory
+  let
+    start_address = self.read(address, ByteAddress)
+    end_address = self.read(address + 8, ByteAddress)
+    size = end_address - start_address
+    element_count = size div 16
+
+  if size <= 0:
+    return @[]
+
+  if element_count > max_count:
+    raise newException(ResourceExhaustedError, &"Size of vector at {address.toHex()} was over max_counter={max_count} (length is {element_count})")
+
+  var data: string
+  try:
+    data = self.readBytes(start_address, size)
+  except ResourceExhaustedError:
+    return @[]
+
+  var offset = 0
+  while offset < size:
+    result.add(cast[ptr ByteAddress](addr data[offset])[])
+    offset += 16
+
+method readDynamicVector*(self: MemoryHandler, address: ByteAddress): seq[ByteAddress] {.base.} =
+  ## Read a dynamic vector from memory. Note: dynamic means pointers to T
+  let
+    start_address = self.read(address, ByteAddress)
+    end_address = self.read(address + 8, ByteAddress)
+    size = (end_address - start_address) div sizeof(pointer)
+
+  if size == 0:
+    return @[]
+
+  var current_address = start_address
+  for _ in 0 ..< size:
+    result.add(self.read(current_address, ByteAddress))
+    current_address += sizeof(pointer)
+
+method readSharedLinkedList*(self: MemoryHandler, address: ByteAddress): seq[ByteAddress] {.base.} =
+  ## Read a shared linked list
+  let 
+    list_addr = self.read(address, ByteAddress)
+    list_size = self.read(address + 8, int32)
+
+  var next_node_addr = list_addr
+  for _ in 0 ..< list_size:
+    let list_node = self.read(next_node_addr, ByteAddress)
+    next_node_addr = self.read(list_node, ByteAddress)
+    result.add(self.read(list_node + 16, ByteAddress))
+
+method readLinkedList*(self: MemoryHandler, address: ByteAddress): seq[ByteAddress] {.base.} =
+  ## Read a normal linked list
+  let 
+    list_addr = self.read(address, ByteAddress)
+    list_size = self.read(address + 8, int32)
+
+  var next_node_addr = list_addr
+  for _ in 0 ..< list_size:
+    let list_node = self.read(next_node_addr, ByteAddress)
+    next_node_addr = self.read(list_node, ByteAddress)
+    result.add(list_node + 16)

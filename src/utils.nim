@@ -21,29 +21,29 @@ var
 
 type
   XYZ* = object
-    x*, y*, z*: float
+    x*, y*, z*: float32
 
   Rectangle* = object
-    x1*, y1*, x2*, y2*: int
+    x1*, y1*, x2*, y2*: int32
 
   PathError* = object of CatchableError
 
-proc initXYZ*(x, y, z: float): XYZ = XYZ(x : x, y : y, z : z)
+proc initXYZ*(x, y, z: float32): XYZ = XYZ(x : x, y : y, z : z)
 
 template square(a: untyped): untyped = a * a
 
-func distance(self, other: (float, float)): float =
+func distance(self, other: (float32, float32)): float =
   ((other[0] - self[0]).square() + (other[1] - self[1])).sqrt()
 
-func distanceSquared*(self, other: XYZ): float =
+func distanceSquared*(self, other: XYZ): float32 =
   (other.x - self.x).square() + (other.y - self.y).square() + (other.z - self.z).square()
 
-func distance*(self, other: XYZ): float =
+func distance*(self, other: XYZ): float32 =
   ## Calculates the distance between two points.
   ## This does not account for z axis
   self.distanceSquared(other).sqrt()
 
-proc calculatePerfectYaw*(current_xyz, target_xyz: XYZ): float =
+proc calculatePerfectYaw*(current_xyz, target_xyz: XYZ): float32 =
   ## Calculates the perfect yaw to reach an xyz in a straight line
   let
     target_line = distance(
@@ -92,12 +92,12 @@ func scaleToClient*(self: Rectangle, parents: seq[Rectangle], factor: float): Re
     result.x1 += rect.x1
     result.x2 += rect.y1
 
-  result.x2 = (((self.x2 - self.x1).float * factor) + (result.x1.float * factor)).int
-  result.y2 = (((self.y2 - self.y1).float * factor) + (result.y1.float * factor)).int
-  result.x1 = (result.x1.float * factor).int
-  result.y1 = (result.y1.float * factor).int
+  result.x2 = (((self.x2 - self.x1).float * factor) + (result.x1.float * factor)).int32
+  result.y2 = (((self.y2 - self.y1).float * factor) + (result.y1.float * factor)).int32
+  result.x1 = (result.x1.float * factor).int32
+  result.y1 = (result.y1.float * factor).int32
 
-func center*(self: Rectangle): (int, int) =
+func center*(self: Rectangle): (int32, int32) =
   ## Get the center point of this rectangle
   (
     (self.x2 - self.x1) div 2 + self.x1,
