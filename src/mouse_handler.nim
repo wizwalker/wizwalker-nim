@@ -13,4 +13,5 @@ method deactivateMouseless*(self: MouseHandler) {.base, async.} =
   discard
 
 method click*(self: MouseHandler) {.base, async.} =
+  ## Click an x, y position
   discard

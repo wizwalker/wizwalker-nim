@@ -54,7 +54,3 @@ method login*(self: Client, username, password: string) {.base.} =
 method sendKey*(self: Client, key: Keycode, seconds: float = 0.0) {.base, async.} =
   ## Send a key
   await timedSendKey(self.window_handle, key, seconds)
-
-method sendHotkey*(self: Client, modifiers: set[Keycode], key: Keycode) {.base, async.} =
-  ## Send a hotkey
-  await sendHotkey(self.window_handle, modifiers, key)
