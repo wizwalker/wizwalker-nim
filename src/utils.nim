@@ -26,6 +26,8 @@ type
   Rectangle* = object
     x1*, y1*, x2*, y2*: int
 
+  PathError* = object of CatchableError
+
 proc initXYZ*(x, y, z: float): XYZ = XYZ(x : x, y : y, z : z)
 
 template square(a: untyped): untyped = a * a
@@ -157,7 +159,7 @@ proc startInstance*() =
       args=["-L", "login.us.wizard101.com", "12000"]
     )
   else:
-    echo "Bad path"
+    raise newException(PathError, "No wizard101 path found")
 
 proc instanceLogin*(window_handle: HWND, username, password: string) =
   ## Login to an instance on the login screen
@@ -227,17 +229,6 @@ proc send_keydown_forever(handle: HWND, key: Keycode) {.async.} =
 proc timedSendKey*(handle: HWND, key: Keycode, seconds: float) {.async.} =
   ## Send a key for a number of seconds
   discard await handle.send_keydown_forever(key).withTimeout((seconds * 1000).int)
-
-proc sendHotkey*(handle: HWND, modifiers: set[Keycode], key: Keycode) {.async.} =
-  ## Send a hotkey
-  for modifier in modifiers:
-    handle.SendMessage(0x100, modifier.int32, 0)
-
-  handle.SendMessage(0x100, key.int32, 0)
-  handle.SendMessage(0x101, key.int32, 0)
-
-  for modifier in modifiers:
-    handle.SendMessage(0x101, modifier.int32, 0)
 
 proc getWindowsFromPredicate*(predicate: proc(handle: HWND): bool): seq[HWND] =
   ## Get all windows that match a predicate

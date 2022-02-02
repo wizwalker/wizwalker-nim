@@ -1,4 +1,3 @@
-
 const
   wizard_speed* = 580 ## Number of units covered in 1 second
 
