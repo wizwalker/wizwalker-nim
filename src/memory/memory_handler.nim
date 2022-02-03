@@ -1,9 +1,8 @@
 import tables
-import regex
 import options
 import strutils
-import encodings
 import strformat
+import re
 
 import winim
 
@@ -11,15 +10,18 @@ import ../utils
 
 const max_string_len = 5000
 
-type MemoryHandler = ref object of RootObj
-  symbol_table: Table[string, Table[string, ByteAddress]]
+type MemoryHandler* = ref object
   process_handle: HANDLE
 
-method is_running*(self: MemoryHandler): bool {.base.} =
+proc initMemoryHandler*(process_handle: HANDLE): MemoryHandler =
+  ## Creates a new MemoryHandler. Only one should be active per wizard101 client
+  MemoryHandler(process_handle : process_handle)
+
+proc is_running*(self: MemoryHandler): bool =
   ## If the process we're reading/writing to/from is running
   checkIfProcessRunning(self.process_handle)
 
-proc scanPageReturnAll(handle: HANDLE, address: ByteAddress, pattern: Regex): (ByteAddress, seq[ByteAddress]) =
+proc scanPageReturnAll(handle: HANDLE, address: ByteAddress, pattern: string): (ByteAddress, seq[ByteAddress]) =
   var mbi: MEMORY_BASIC_INFORMATION
   VirtualQueryEx(handle, cast[pointer](address), addr(mbi), sizeof(mbi))
 
@@ -47,13 +49,17 @@ proc scanPageReturnAll(handle: HANDLE, address: ByteAddress, pattern: Regex): (B
   )
 
   var found: seq[ByteAddress]
-  for match in findAllBounds(buffer, pattern):
-    let found_address = address + match.a
-    found.add(found_address)
+  var last_pos = 0
+  while true:
+    let pos = buffer.find(re(pattern), last_pos+pattern.len())
+    if pos == -1:
+      break
+    found.add(cast[ByteAddress](mbi.BaseAddress) + pos)
+    last_pos = pos
 
   return (next_region, found)
 
-method scanAll(self: MemoryHandler, pattern: Regex, return_multiple: bool = false): seq[ByteAddress] {.base.} =
+proc scanAll(self: MemoryHandler, pattern: string, return_multiple: bool = false): seq[ByteAddress] =
   var
     next_region: ByteAddress
 
@@ -64,24 +70,23 @@ method scanAll(self: MemoryHandler, pattern: Regex, return_multiple: bool = fals
     if not return_multiple and result.len() > 0:
       break
 
-method scanEntireModule(self: MemoryHandler, module: MODULEINFO, pattern: Regex): seq[ByteAddress] {.base.} =
-  let
-    base_address = cast[ByteAddress](module.lpBaseOfDll)
-    max_address = base_address + module.SizeOfImage
-
-  var page_address = base_address
+proc scanEntireModule(self: MemoryHandler, module: MODULEINFO, pattern: string): seq[ByteAddress] =
+  var page_address = cast[ByteAddress](module.lpBaseOfDll)
+  let max_address = page_address + module.SizeOfImage
 
   while page_address < max_address:
     let scan_res = self.process_handle.scanPageReturnAll(page_address, pattern)
     result.add(scan_res[1])
+    page_address = scan_res[0]
 
 iterator enumProcessModules(handle: HANDLE): MODULEINFO =
   var buff: array[1024, HMODULE]
-  let success = EnumProcessmodulesEx(
+  var a: int32
+  let success = EnumProcessModulesEx(
     handle,
     addr buff[0],
     sizeof(buff).int32,
-    nil,
+    addr a,
     LIST_MODULES_ALL
   )
 
@@ -99,8 +104,10 @@ iterator enumProcessModules(handle: HANDLE): MODULEINFO =
       )
 
       yield mod_info
+  else:
+    discard # maybe error
 
-method getModuleName(self: MemoryHandler, info: MODULEINFO): string {.base.} =
+proc getModuleName(self: MemoryHandler, info: MODULEINFO): string =
   result = newString(MAX_PATH)
   discard GetModuleBaseNameA(
     self.process_handle,
@@ -108,14 +115,15 @@ method getModuleName(self: MemoryHandler, info: MODULEINFO): string {.base.} =
     addr result[0],
     result.len().int32
   )
+  result = result[0 ..< result.find("\x00")]
 
-method moduleFromName(self: MemoryHandler, module_name: string): MODULEINFO {.base.} =
+proc moduleFromName(self: MemoryHandler, module_name: string): MODULEINFO =
   let modname = module_name.toLowerAscii()
   for module in enumProcessModules(self.process_handle):
     if modname == self.getModuleName(module).toLowerAscii():
       return module
 
-method patternScan*(self: MemoryHandler, pattern: Regex, module: string = "", return_multiple: bool = false): seq[ByteAddress] {.base.} =
+proc patternScan*(self: MemoryHandler, pattern: string, module: string = "", return_multiple: bool = false): seq[ByteAddress] =
   ## Scan for a pattern
   let found =
     if module.len() > 0:
@@ -125,23 +133,23 @@ method patternScan*(self: MemoryHandler, pattern: Regex, module: string = "", re
       self.scanAll(pattern, return_multiple)
 
   if found.len() == 0:
-    raise newException(ResourceExhaustedError, "Could not find pattern: " & $pattern)
+    raise newException(ResourceExhaustedError, "Could not find pattern: " & pattern)
   elif found.len() > 1 and not return_multiple:
-    raise newException(ResourceExhaustedError, "Got too many results for pattern: " & $pattern)
+    raise newException(ResourceExhaustedError, "Got too many results for pattern: " & pattern)
   elif return_multiple:
     return found
   else:
     result.add(found[0])
 
-method allocate*(self: MemoryHandler, size: int): ByteAddress {.base.} =
+proc allocate*(self: MemoryHandler, size: int): ByteAddress =
   ## Allocate memory in process
   cast[ByteAddress](self.process_handle.VirtualAllocEx(nil, size, MEM_COMMIT, PAGE_EXECUTE_READWRITE))
 
-method free*(self: MemoryHandler, address: ByteAddress) {.base.} =
+proc free*(self: MemoryHandler, address: ByteAddress) =
   ## Free memory
   self.process_handle.VirtualFreeEx(cast[pointer](address), 0, MEM_RELEASE)
 
-method readBytes*(self: MemoryHandler, address: ByteAddress, size: int): string {.base.} =
+proc readBytes*(self: MemoryHandler, address: ByteAddress, size: int): string =
   ## Read bytes from memory
   if not address > 0 or address >= 0x7FFFFFFFFFFFFFFF:
     raise newException(ResourceExhaustedError, "Address out of range: " & address.toHex())
@@ -151,25 +159,25 @@ method readBytes*(self: MemoryHandler, address: ByteAddress, size: int): string 
   if success == 0:
     raise newException(OSError, "Failed to read from address " & address.toHex())
 
-method writeBytes*(self: MemoryHandler, address: ByteAddress, value: string) {.base.} =
+proc writeBytes*(self: MemoryHandler, address: ByteAddress, value: string) =
   ## Write bytes to memory
   var buff = value # can probably avoid copy
   let success = self.process_handle.WriteProcessMemory(cast[pointer](address), addr(buff[0]), value.len(), nil)
   if success == 0:
     raise newException(OSError, "Failed to write to address " & address.toHex())
 
-method read*[T](self: MemoryHandler, address: ByteAddress, t: typedesc[T]): T {.base.} =
+proc read*[T](self: MemoryHandler, address: ByteAddress, t: typedesc[T]): T =
   ## Read typed value from memory. Does not work for strings/containers
   let data = self.readBytes(address, sizeof(T))
   cast[T](data[0])
 
-method write*[T](self: MemoryHandler, address: ByteAddress, val: T) {.base.} =
+proc write*[T](self: MemoryHandler, address: ByteAddress, val: T) =
   ## Write typed value to memory. Does not work for strings/containers
   var buff = newString(sizeof(T))
   cast[ptr T](addr buff[0])[] = val
   self.writeBytes(address, buff)
 
-method readNullTerminatedString*(self: MemoryHandler, address: ByteAddress, max_size: int = 20): string {.base.} =
+proc readNullTerminatedString*(self: MemoryHandler, address: ByteAddress, max_size: int = 20): string =
   ## Read a null-terminated string from memory
   let 
     bytes = self.readBytes(address, max_size)
@@ -181,7 +189,7 @@ method readNullTerminatedString*(self: MemoryHandler, address: ByteAddress, max_
 
   bytes[0 ..< string_end]
 
-method readWideString*(self: MemoryHandler, address: ByteAddress): string {.base.} =
+proc readWideString*(self: MemoryHandler, address: ByteAddress): string =
   ## Read a wide string from memory
   # TODO: Check if this works
   let string_len = self.read(address + 16, int32) * 2
@@ -195,7 +203,7 @@ method readWideString*(self: MemoryHandler, address: ByteAddress): string {.base
 
   self.readBytes(string_address, string_len)
 
-method writeWideString*(self: MemoryHandler, address: ByteAddress, value: string) {.base.} =
+proc writeWideString*(self: MemoryHandler, address: ByteAddress, value: string) =
   ## Write a wide string to memory
   # TODO: Check if this works
   let
@@ -215,7 +223,7 @@ method writeWideString*(self: MemoryHandler, address: ByteAddress, value: string
 
   self.write(string_len_addr, data.len().int32)
 
-method readString*(self: MemoryHandler, address: ByteAddress): string {.base.} =
+proc readString*(self: MemoryHandler, address: ByteAddress): string =
   ## Read a string from memory
   let string_len = self.read(address + 16, int32)
   if not string_len > 0 or string_len > max_string_len:
@@ -227,7 +235,7 @@ method readString*(self: MemoryHandler, address: ByteAddress): string {.base.} =
 
   self.readBytes(string_address, string_len)
 
-method writeString*(self: MemoryHandler, address: ByteAddress, value: string) {.base.} =
+proc writeString*(self: MemoryHandler, address: ByteAddress, value: string) =
   ## Write a string to memory
   let
     string_len_addr = address + 16
@@ -239,7 +247,7 @@ method writeString*(self: MemoryHandler, address: ByteAddress, value: string) {.
     self.writeBytes(pointer_address, value & "\x00")
     self.write(address, pointer_address)
 
-method readVector*[T](self: MemoryHandler, address: ByteAddress, size: int, data_type: typedesc[T]): seq[T] {.base.} =
+proc readVector*[T](self: MemoryHandler, address: ByteAddress, size: int, data_type: typedesc[T]): seq[T] =
   ## Read a vector from memory
   # TODO: Check if this works. Uses some black magic
   var
@@ -250,23 +258,23 @@ method readVector*[T](self: MemoryHandler, address: ByteAddress, size: int, data
     result.add(cast[ptr T](addr buff[offset])[])
     offset += sizeof(T)
 
-method writeVector*[T](self: MemoryHandler, address: ByteAddress, values: seq[T]) {.base.} =
+proc writeVector*[T](self: MemoryHandler, address: ByteAddress, values: seq[T]) =
   ## Writes a vector. A list of containers will not work, unless their size is known at compiletime.
   var offset = 0
   for val in values:
     self.write(address + offset, val)
     offset += sizeof(T)
 
-method readXYZ*(self: MemoryHandler, address: ByteAddress): XYZ {.base.} =
+proc readXYZ*(self: MemoryHandler, address: ByteAddress): XYZ =
   ## Read XYZ from memory as a vector
   let values = self.readVector(address, 3, float32)
   XYZ(x : values[0], y : values[1], z : values[2])
 
-method writeXYZ*(self: MemoryHandler, address: ByteAddress, value: XYZ) {.base.} =
+proc writeXYZ*(self: MemoryHandler, address: ByteAddress, value: XYZ) =
   ## Write XYZ to memory as a vector
   self.writeVector(address, @[value.x, value.y, value.z])
 
-method readSharedVector*(self: MemoryHandler, address: ByteAddress, max_count: int = 1000): seq[ByteAddress] {.base.} =
+proc readSharedVector*(self: MemoryHandler, address: ByteAddress, max_count: int = 1000): seq[ByteAddress] =
   ## Read a shared vector from memory
   let
     start_address = self.read(address, ByteAddress)
@@ -278,7 +286,7 @@ method readSharedVector*(self: MemoryHandler, address: ByteAddress, max_count: i
     return @[]
 
   if element_count > max_count:
-    raise newException(ResourceExhaustedError, &"Size of vector at {address.toHex()} was over max_counter={max_count} (length is {element_count})")
+    raise newException(ResourceExhaustedError, &"Size of vector at {address.toHex()} was over max_count={max_count} (length is {element_count})")
 
   var data: string
   try:
@@ -291,7 +299,7 @@ method readSharedVector*(self: MemoryHandler, address: ByteAddress, max_count: i
     result.add(cast[ptr ByteAddress](addr data[offset])[])
     offset += 16
 
-method readDynamicVector*(self: MemoryHandler, address: ByteAddress): seq[ByteAddress] {.base.} =
+proc readDynamicVector*(self: MemoryHandler, address: ByteAddress): seq[ByteAddress] =
   ## Read a dynamic vector from memory. Note: dynamic means pointers to T
   let
     start_address = self.read(address, ByteAddress)
@@ -306,7 +314,7 @@ method readDynamicVector*(self: MemoryHandler, address: ByteAddress): seq[ByteAd
     result.add(self.read(current_address, ByteAddress))
     current_address += sizeof(pointer)
 
-method readSharedLinkedList*(self: MemoryHandler, address: ByteAddress): seq[ByteAddress] {.base.} =
+proc readSharedLinkedList*(self: MemoryHandler, address: ByteAddress): seq[ByteAddress] =
   ## Read a shared linked list
   let 
     list_addr = self.read(address, ByteAddress)
@@ -318,7 +326,7 @@ method readSharedLinkedList*(self: MemoryHandler, address: ByteAddress): seq[Byt
     next_node_addr = self.read(list_node, ByteAddress)
     result.add(self.read(list_node + 16, ByteAddress))
 
-method readLinkedList*(self: MemoryHandler, address: ByteAddress): seq[ByteAddress] {.base.} =
+proc readLinkedList*(self: MemoryHandler, address: ByteAddress): seq[ByteAddress] =
   ## Read a normal linked list
   let 
     list_addr = self.read(address, ByteAddress)

@@ -77,6 +77,12 @@ method getOrderedClients*(self: ClientHandler): seq[Client] {.base.} =
 # TODO
 # method close
 
+import times
 when isMainModule:
-  var client_handler = ClientHandler(client_cls : newClient)
-  echo repr(client_handler.getNewClients())
+  var client_handler = ClientHandler(client_cls : initClient)
+  var c = client_handler.getNewClients()[0]
+  let start = cpuTime()
+  waitFor c.activateHooks(wait_for_ready=false)
+  echo "hooked"
+  echo "closing"
+  waitFor c.close()

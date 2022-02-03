@@ -257,4 +257,13 @@ proc getAllWizardHandles*(): seq[HWND] =
     if +$target_class == class_name:
       return true
 
-  getWindowsFromPredicate(callback)
+  result = getWindowsFromPredicate(callback)
+
+proc toString*[S](bytes: array[S, byte]): string =
+  ## Helper to convert static byte arrays to byte string
+  result = newString(bytes.len())
+  copyMem(addr(result[0]), unsafeAddr(bytes[0]), bytes.len())
+
+template toBytes*[T](v: T): untyped =
+  ## Helper to convert "flat" types to bytes
+  cast[array[sizeof(T), byte]](v)

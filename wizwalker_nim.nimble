@@ -10,5 +10,4 @@ srcDir        = "src"
 # Dependencies
 
 requires "nim >= 1.6.2"
-requires "regex"
 requires "winregistry"
