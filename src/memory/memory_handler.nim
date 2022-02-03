@@ -133,9 +133,9 @@ proc patternScan*(self: MemoryHandler, pattern: string, module: string = "", ret
       self.scanAll(pattern, return_multiple)
 
   if found.len() == 0:
-    raise newException(ResourceExhaustedError, "Could not find pattern: " & pattern)
+    raise newException(ResourceExhaustedError, "Could not find pattern: " & pattern.toHex()) # TODO: This and the next toHex are horrendous
   elif found.len() > 1 and not return_multiple:
-    raise newException(ResourceExhaustedError, "Got too many results for pattern: " & pattern)
+    raise newException(ResourceExhaustedError, "Got too many results for pattern: " & pattern.toHex())
   elif return_multiple:
     return found
   else:

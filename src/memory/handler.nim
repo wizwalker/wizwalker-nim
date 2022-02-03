@@ -96,31 +96,68 @@ proc waitForValue(self: HookHandler, address: ByteAddress, timeout_seconds: floa
   else:
     await value_task()
 
-proc activatePlayerHook*(self: HookHandler, wait_for_ready: bool = true, timeout: float = -1.0) {.async.} =
-  ## Activate the player hook
-  if self.checkIfHookActive(PlayerHook):
-    raise newException(ValueError, "Player hook activated twice")
+template createHookToggles*(typename: typed, exported: string) {.dirty.} =
+  proc `activate typename`*(self: HookHandler, wait_for_ready: bool = true, timeout: float = -1.0) {.async.} =
+    if self.checkIfHookActive(typename):
+      let name = $typename
+      raise newException(ValueError, &"{name} activated twice")
+    proc autobotAllocator(size: int): ByteAddress =
+      self.allocateAutobotBytes(size)
+    let hook = `init typename`(self.memory_handler, autobotAllocator)
+    hook.hook()
+    self.active_hooks.add(hook)
+    self.base_addrs[exported] = hook.export_addrs[exported]
 
-  proc autobotAllocator(size: int): ByteAddress =
-    self.allocateAutobotBytes(size)
+    if wait_for_ready:
+      await self.waitForValue(hook.export_addrs[exported], timeout)
 
-  let player_hook = initPlayerHook(self.memory_handler, autobotAllocator)
-  player_hook.hook()
-  self.active_hooks.add(player_hook)
-  self.base_addrs["player_struct"] = player_hook.export_addrs["player_struct"]
+  proc `deactivate typename`*(self: HookHandler) {.async.} =
+    if not self.checkIfHookActive(typename):
+      let name = $typename
+      raise newException(ValueError, &"Tried disabling {name} hook")
+
+    let hook = self.getHookByType(typename)
+    self.active_hooks.del(self.active_hooks.find(hook))
+    hook.unhook()
+
+    self.base_addrs.del(exported)
+
+  proc `readCurrent typename Base`*(self: HookHandler): ByteAddress =
+    self.readHookBaseAddr(exported)
+
+createHookToggles(PlayerHook, "player_struct")
+createHookToggles(DuelHook, "current_duel_addr")
+createHookToggles(QuestHook, "cord_struct")
+createHookToggles(PlayerStatHook, "stat_addr")
+createHookToggles(ClientHook, "current_client_addr")
+createHookToggles(RootWindowHook, "current_root_window_addr")
+createHookToggles(RenderContextHook, "current_render_context_addr")
+
+proc activateAllHooks*(self: HookHandler, wait_for_ready: bool = true, timeout: float = -1.0) {.async.} =
+  ## Activate all hooks but mouseless
+  echo "PlayerHook"
+  await self.activatePlayerHook(wait_for_ready=false)
+  # duel is only written to on battle join
+  echo "DuelHook"
+  await self.activateDuelHook(wait_for_ready=false)
+  # quest hook is not written if quest arrow is off
+  echo "QuestHook"
+  await self.activateQuestHook(wait_for_ready=false)
+  echo "PlayerStatHook"
+  await self.activatePlayerStatHook(wait_for_ready=false)
+  echo "ClientHook"
+  await self.activateClientHook(wait_for_ready=false)
+  echo "RootWindowHook"
+  await self.activateRootWindowHook(wait_for_ready=false)
+  echo "RenderContextHook"
+  await self.activateRenderContextHook(wait_for_ready=false)
 
   if wait_for_ready:
-    await self.waitForValue(player_hook.export_addrs["player_struct"], timeout)
-
-proc deactivatePlayerHook*(self: HookHandler) {.async.} =
-  if not self.checkIfHookActive(PlayerHook):
-    raise newException(ValueError, "Tried disabling inactive player hook")
-
-  let hook = self.getHookByType(PlayerHook)
-  self.active_hooks.del(self.active_hooks.find(hook))
-  hook.unhook()
-
-  self.base_addrs.del("player_struct")
-
-proc readCurrentPlayerBase*(self: HookHandler): ByteAddress =
-  self.readHookBaseAddr("player_struct")
+    echo "Waiting for hooks"
+    await all(@[
+      self.waitForValue(self.base_addrs["player_struct"]),
+      self.waitForValue(self.base_addrs["player_stat_struct"]),
+      self.waitForValue(self.base_addrs["current_client"]),
+      self.waitForValue(self.base_addrs["current_root_window"]),
+      self.waitForValue(self.base_addrs["current_render_context"]),
+    ])

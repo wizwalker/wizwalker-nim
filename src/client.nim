@@ -65,7 +65,7 @@ method sendKey*(self: Client, key: Keycode, seconds: float = 0.0) {.base, async.
 method activateHooks*(self: Client, wait_for_ready: bool = true, timeout: float = -1) {.base, async.} =
   ## Activates all hooks for this client
   self.hook_handler.prepareAutobot()
-  await self.hook_handler.activatePlayerHook(wait_for_ready, timeout)
+  await self.hook_handler.activateAllHooks(wait_for_ready, timeout)
 
 method close*(self: Client) {.base, async.} =
   await self.hook_handler.close()

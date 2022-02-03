@@ -137,7 +137,7 @@ template buildSimpleHook*(name, exported: untyped, nops: int, reg: string, origi
   proc `init name`*(memory_handler: MemoryHandler, autobot_allocator: proc (size: int): ByteAddress): name =
     name(
       autobot_allocator : autobot_allocator,
-      pattern : reg,
+      pattern : "(?s)" & escapeByteRegex(reg), # TODO: Replace with a macro that looks at literal instead of string
       exports : exported,
       noops : nops,
       instruction_length : original_code.len(),

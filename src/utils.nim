@@ -4,6 +4,7 @@ import os
 import strformat
 import osproc
 import asyncdispatch
+import strutils
 
 import fusion/matching
 {.experimental: "caseStmtMacros".}
@@ -267,3 +268,33 @@ proc toString*[S](bytes: array[S, byte]): string =
 template toBytes*[T](v: T): untyped =
   ## Helper to convert "flat" types to bytes
   cast[array[sizeof(T), byte]](v)
+
+proc escapeByteRegex*(v: string): string = 
+  ## Helper to escape bytes that happen to have a meaning in pcre regex.
+  ## This should be prime suspect #1 if patterns don't work for no reason
+  v.multiReplace(
+    ("+", "\\+"),
+    ("*", "\\*"),
+    ("?", "\\?"),
+    ("^", "\\^"),
+    ("$", "\\$"),
+    ("(", "\\("),
+    (")", "\\)"),
+    ("{", "\\{"), # only opening one is evil
+    ("[", "\\["), # same here
+    ("|", "\\|"), # TODO: Think about this some more
+  )
+
+proc all*[T](fs: seq[Future[T]]): Future[seq[T]] =
+  ## Helper to deal with multiple futures at once
+  result = newFuture[seq[T]](fromProc = "all")
+  var
+    items = newSeq[A](fs.len)
+    count = 0
+  
+  for i, f in fs:
+    f.callback = proc(g: Future[T]) =
+      items[i] = g.read
+      count += 1
+      if count == fs.len:
+        result.complete(items)
