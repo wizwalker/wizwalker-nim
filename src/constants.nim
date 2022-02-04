@@ -1,3 +1,5 @@
+import sets
+
 const
   wizard_speed* = 580 ## Number of units covered in 1 second
 
@@ -154,3 +156,11 @@ type
     Reserved = 252,
     PA1 = 253,
     Clear_2 = 254
+
+  Modifier* {.pure.} = enum
+    ALT = 0,
+    CTRL = 1
+    SHIFT = 2
+    NOREPEAT = 14
+
+  ModifierFlags* = set[Modifier] # TODO: Check if this works

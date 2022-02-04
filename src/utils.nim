@@ -186,7 +186,7 @@ proc waitForValue*[T](coro: proc(): Future[T], want: T, sleep_time: float = 0.5,
         return val
     except Exception as e:
       if ignore_errors:
-        await sleepAsync(sleep_time)
+        await sleepAsync((sleep_time * 1000.int)
       else:
         raise e
 
@@ -225,7 +225,7 @@ proc checkIfProcessRunning*(process_handle: HANDLE): bool =
 proc send_keydown_forever(handle: HWND, key: Keycode) {.async.} =
   while true:
     handle.SendMessage(0x100, key.int32, 0)
-    await sleepAsync(0.05)
+    await sleepAsync(50)
 
 proc timedSendKey*(handle: HWND, key: Keycode, seconds: float) {.async.} =
   ## Send a key for a number of seconds

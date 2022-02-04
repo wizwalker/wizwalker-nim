@@ -89,7 +89,7 @@ proc waitForValue(self: HookHandler, address: ByteAddress, timeout_seconds: floa
         if value != 0:
           break
       except CatchableError:
-        await sleepAsync(0.1)
+        await sleepAsync(100)
   if timeout_seconds != -1.0:
     if not await value_task().withTimeout((timeout_seconds * 1000).int):
       raise newException(ResourceExhaustedError, "Hook value took too long")
@@ -135,25 +135,17 @@ createHookToggles(RenderContextHook, "current_render_context_addr")
 
 proc activateAllHooks*(self: HookHandler, wait_for_ready: bool = true, timeout: float = -1.0) {.async.} =
   ## Activate all hooks but mouseless
-  echo "PlayerHook"
   await self.activatePlayerHook(wait_for_ready=false)
   # duel is only written to on battle join
-  echo "DuelHook"
   await self.activateDuelHook(wait_for_ready=false)
   # quest hook is not written if quest arrow is off
-  echo "QuestHook"
   await self.activateQuestHook(wait_for_ready=false)
-  echo "PlayerStatHook"
   await self.activatePlayerStatHook(wait_for_ready=false)
-  echo "ClientHook"
   await self.activateClientHook(wait_for_ready=false)
-  echo "RootWindowHook"
   await self.activateRootWindowHook(wait_for_ready=false)
-  echo "RenderContextHook"
   await self.activateRenderContextHook(wait_for_ready=false)
 
   if wait_for_ready:
-    echo "Waiting for hooks"
     await all(@[
       self.waitForValue(self.base_addrs["player_struct"]),
       self.waitForValue(self.base_addrs["player_stat_struct"]),
