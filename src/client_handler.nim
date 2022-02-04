@@ -1,7 +1,7 @@
 import asyncdispatch
 import options
-import os
 import algorithm
+import posix
 
 import winim
 
@@ -13,6 +13,16 @@ type
     client_cls: proc(handle: HWND): Client ## Client constructor
     managed_handles: seq[HWND]
     clients: seq[Client]
+
+proc initClientHandler*(client_cls: proc(handle: HWND): Client = initClient): ClientHandler =
+  ## Constructor for ClientHandler. Should use this instead of using type directly
+  new(result)
+  result.client_cls = client_cls
+
+template registerInterruptHandler*(body: untyped) =
+  ## This should help with console interrupt, but it does not. A real solution is needed
+  onSignal(SIGINT, SIGTERM):
+    body
 
 method installLocation*(self: ClientHandler): Option[string] {.base.} =
   ## Wizard101 install location
@@ -77,22 +87,3 @@ method getOrderedClients*(self: ClientHandler): seq[Client] {.base.} =
 # TODO
 # method close
 
-proc ctrlc() {.noconv.} =
-  raise newException(CatchableError, "")
-
-setControlCHook(ctrlc)
-
-when isMainModule:
-  import memory/memory_objects/actor_body
-
-  proc main() {.async.} =
-    var client_handler = ClientHandler(client_cls : initClient)
-    var c = client_handler.getNewClients()[0]
-    try:
-      await c.activateHooks()
-      c.body.writeScale(2.0)
-    finally:
-      echo "Closing"
-      await c.close()
-
-  waitFor main()

@@ -1,7 +1,4 @@
-import ../memory_object
-import ../memory_handler
-import ../handler
-import ../../utils
+include common_imports
 
 type
   ActorBody* = ref object of PropertyClass

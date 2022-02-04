@@ -95,7 +95,9 @@ proc handleHotkey(self: HotkeyListener, keycode: Keycode, modifiers: ModifierFla
 proc messageLoop(self: HotkeyListener) {.async.} =
   while self.running:
     for key in self.callbacks.keys():
-      if hotkey_message_loop.checkForMessage(key[0], key[1]):
+      var mods = key[1]
+      mods.excl(Modifier.NOREPEAT)
+      if hotkey_message_loop.checkForMessage(key[0], mods):
         self.handleHotkey(key[0], key[1])
 
     await sleepAsync((self.sleep_time * 1000).int)
@@ -105,6 +107,7 @@ proc start*(self: HotkeyListener) =
   if self.running:
     raise newException(ValueError, "Hotkey listener has already been started")
 
+  self.running = true
   hotkey_message_loop.connect()
 
   asyncCheck self.messageLoop()
@@ -133,6 +136,7 @@ proc addHotkey*(self: HotkeyListener, key: Keycode, callback: proc () {.async.},
   if self.registerHotkey(key, modifiers):
     var no_norepeat = modifiers
     no_norepeat.excl(Modifier.NOREPEAT)
+    self.callbacks[(key, modifiers)] = callback
   else:
     raise newException(ValueError, &"{key} with modifiers {modifiers} already registered")
 

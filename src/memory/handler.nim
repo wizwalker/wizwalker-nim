@@ -1,6 +1,5 @@
 import asyncdispatch
 import tables
-import re
 import strformat
 import strutils
 
