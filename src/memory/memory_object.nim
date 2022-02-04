@@ -1,13 +1,16 @@
 import strformat
 
 import memory_handler
+import handler
+import ../utils
 
 type
   MemoryObject* = ref object of RootObj
     base_address: ByteAddress
     memory_handler*: MemoryHandler
+    hook_handler*: HookHandler
 
-proc initMemoryObject*(self: MemoryObject, memory_handler: MemoryHandler, base_address: ByteAddress): MemoryObject =
+proc initMemoryObject*(self: MemoryObject, memory_handler: MemoryHandler, hook_handler: HookHandler, base_address: ByteAddress): MemoryObject =
   ## Creates a new MemoryObject instance
   if base_address == 0:
     # TODO: Confirm if this does what it should
@@ -15,6 +18,7 @@ proc initMemoryObject*(self: MemoryObject, memory_handler: MemoryHandler, base_a
 
   self.base_address = base_address
   self.memory_handler = memory_handler
+  self.hook_handler = hook_handler
 
 method `==`*(self: MemoryObject, other: MemoryObject): bool {.base.} =
   ## Helper for comparison
@@ -58,6 +62,12 @@ proc readVectorFromOffset*[T](self: MemoryObject, offset: int, size: int, t: typ
 proc writeVectorToOffset*[T](self: MemoryObject, offset: int, val: seq[T]) =
   ## Write a vector to object offset
   self.memory_handler.writeVector(self.readBaseAddress() + offset, val)
+
+proc readXYZFromOffset*(self: MemoryObject, offset: int): XYZ =
+  self.memory_handler.readXYZ(self.readBaseAddress() + offset)
+
+proc writeXYZToOffset*(self: MemoryObject, offset: int, val: XYZ) =
+  self.memory_handler.writeXYZ(self.readBaseAddress() + offset, val)
 
 proc readSharedVectorFromOffset*(self: MemoryObject, offset: int, max_count: int = 1000): seq[ByteAddress] =
   ## Read a shared vector from object offset

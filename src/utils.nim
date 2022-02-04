@@ -186,7 +186,7 @@ proc waitForValue*[T](coro: proc(): Future[T], want: T, sleep_time: float = 0.5,
         return val
     except Exception as e:
       if ignore_errors:
-        await sleepAsync((sleep_time * 1000.int)
+        await sleepAsync((sleep_time * 1000).int)
       else:
         raise e
 

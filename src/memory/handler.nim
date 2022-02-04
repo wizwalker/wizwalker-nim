@@ -148,8 +148,8 @@ proc activateAllHooks*(self: HookHandler, wait_for_ready: bool = true, timeout: 
   if wait_for_ready:
     await all(@[
       self.waitForValue(self.base_addrs["player_struct"]),
-      self.waitForValue(self.base_addrs["player_stat_struct"]),
-      self.waitForValue(self.base_addrs["current_client"]),
-      self.waitForValue(self.base_addrs["current_root_window"]),
-      self.waitForValue(self.base_addrs["current_render_context"]),
+      self.waitForValue(self.base_addrs["stat_addr"]),
+      self.waitForValue(self.base_addrs["current_client_addr"]),
+      self.waitForValue(self.base_addrs["current_root_window_addr"]),
+      self.waitForValue(self.base_addrs["current_render_context_addr"]),
     ])

@@ -77,12 +77,22 @@ method getOrderedClients*(self: ClientHandler): seq[Client] {.base.} =
 # TODO
 # method close
 
+proc ctrlc() {.noconv.} =
+  raise newException(CatchableError, "")
+
+setControlCHook(ctrlc)
+
 when isMainModule:
-  import times
-  var client_handler = ClientHandler(client_cls : initClient)
-  var c = client_handler.getNewClients()[0]
-  let start = cpuTime()
-  waitFor c.activateHooks(wait_for_ready=false)
-  echo "Hooking took " & $(cpuTime() - start) & "s"
-  echo "Closing"
-  waitFor c.close()
+  import memory/memory_objects/actor_body
+
+  proc main() {.async.} =
+    var client_handler = ClientHandler(client_cls : initClient)
+    var c = client_handler.getNewClients()[0]
+    try:
+      await c.activateHooks()
+      c.body.writeScale(2.0)
+    finally:
+      echo "Closing"
+      await c.close()
+
+  waitFor main()

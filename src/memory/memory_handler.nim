@@ -168,8 +168,8 @@ proc writeBytes*(self: MemoryHandler, address: ByteAddress, value: string) =
 
 proc read*[T](self: MemoryHandler, address: ByteAddress, t: typedesc[T]): T =
   ## Read typed value from memory. Does not work for strings/containers
-  let data = self.readBytes(address, sizeof(T))
-  cast[T](data[0])
+  var data = self.readBytes(address, sizeof(T))
+  cast[ptr T](addr(data[0]))[]
 
 proc write*[T](self: MemoryHandler, address: ByteAddress, val: T) =
   ## Write typed value to memory. Does not work for strings/containers

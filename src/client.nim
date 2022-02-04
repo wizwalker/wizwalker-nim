@@ -8,6 +8,7 @@ import utils
 import constants
 import memory/memory_handler
 import memory/handler
+import memory/memory_objects/actor_body
 
 type
   Client* = ref object of RootObj
@@ -17,17 +18,19 @@ type
     hook_handler*: HookHandler
     process_handle*: HANDLE
 
+    body*: CurrentActorBody
+
 method process_id*(self: Client): int32 {.base.} =
   ## Client's process id
   self.window_handle.getPidFromHandle()
 
 proc initClient*(window_handle: HWND): Client =
-  result = Client(
-    window_handle : window_handle,
-  )
+  result = Client(window_handle : window_handle)
   result.process_handle = OpenProcess(PROCESS_ALL_ACCESS, false, result.process_id())
   result.memory_handler = initMemoryHandler(result.process_handle)
   result.hook_handler = initHookHandler(result.memory_handler)
+
+  result.body = CurrentActorBody(memory_handler : result.memory_handler, hook_handler : result.hook_handler)
 
 method title*(self: Client): string {.base.} =
   ## Get the window title
