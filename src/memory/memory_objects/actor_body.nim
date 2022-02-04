@@ -4,10 +4,8 @@ type
   ActorBody* = ref object of PropertyClass
   CurrentActorBody* = ref object of ActorBody
 
-method readBaseAddress*(self: ActorBody): ByteAddress =
-  raise newException(ValueError, "Non-dynamic ActorBody does not support memory operations")
-
 method readBaseAddress*(self: CurrentActorBody): ByteAddress =
+  ## Read this objects starting address
   result = self.hook_handler.readCurrentPlayerHookBase()
 
 proc position*(self: ActorBody): XYZ =

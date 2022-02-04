@@ -1,4 +1,5 @@
 import strformat
+import options
 
 import memory_handler
 import handler
@@ -6,13 +7,14 @@ import ../utils
 
 type
   MemoryObject* = ref object of RootObj
-    base_address: ByteAddress
+    base_address: Option[ByteAddress]
     memory_handler*: MemoryHandler
     hook_handler*: HookHandler
+    is_dynamic*: bool
 
-proc initMemoryObject*(self: MemoryObject, memory_handler: MemoryHandler, hook_handler: HookHandler, base_address: ByteAddress): MemoryObject =
+proc init*(self: MemoryObject, memory_handler: MemoryHandler, hook_handler: HookHandler, base_address: Option[ByteAddress] = none(ByteAddress)) =
   ## Creates a new MemoryObject instance
-  if base_address == 0:
+  if base_address.isSome() and base_address.get() == 0:
     # TODO: Confirm if this does what it should
     raise newException(ResourceExhaustedError, &"Dynamic object {$typeof(self)} passed 0 base address")
 
@@ -26,10 +28,12 @@ method `==`*(self: MemoryObject, other: MemoryObject): bool {.base.} =
 
 method readBaseAddress*(self: MemoryObject): ByteAddress {.base.} =
   ## Gets the base address so Current* objects can work
-  if self.base_address != -1:
-    self.base_address
+  if self.is_dynamic and (not self.base_address.isSome() or self.base_address.get() == 0):
+    raise newException(ValueError, "A dynamic MemoryObject with base 0 makes no sense")
+  elif not self.is_dynamic and self.base_address.isSome():
+    raise newException(ValueError, "Only dynamic MemoryObjects are allowed to have a base address")
   else:
-    quit "Only Current* objects can have a base_address of -1"
+    self.base_address.get()
 
 proc readValueFromOffset*[T](self: MemoryObject, offset: int, t: typedesc[T]): T =
   ## Read a value, offset from the base of the object. Does not work for containers

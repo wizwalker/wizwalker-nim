@@ -11,3 +11,4 @@ srcDir        = "src"
 
 requires "nim >= 1.6.2"
 requires "winregistry"
+requires "zippy"

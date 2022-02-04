@@ -1,4 +1,4 @@
-import asyncdispatch
+import std/asyncdispatch
 
 import ../src/client
 import ../src/client_handler
@@ -12,12 +12,8 @@ proc main() {.async.} =
     client_handler = initClientHandler()
     c {.global.} = client_handler.getNewClients()[0]
 
-  registerInterruptHandler:
-    echo "Closing"
-    waitFor c.close()
-
   try:
-    await c.activateHooks()
+    await c.activateHooks(wait_for_ready = false)
 
     proc handleQuestTpHotkey() {.async.} =
       await c.teleport(c.quest_position.position(), move_after=false)
@@ -35,6 +31,6 @@ proc main() {.async.} =
     runForever()
   finally:
     echo "Closing"
-    await c.close()
+    await client_handler.close()
 
 waitFor main()

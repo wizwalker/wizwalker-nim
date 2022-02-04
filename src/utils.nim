@@ -284,17 +284,3 @@ proc escapeByteRegex*(v: string): string =
     ("[", "\\["), # same here
     ("|", "\\|"), # TODO: Think about this some more
   )
-
-proc all*[T](fs: seq[Future[T]]): Future[seq[T]] =
-  ## Helper to deal with multiple futures at once
-  result = newFuture[seq[T]](fromProc = "all")
-  var
-    items = newSeq[A](fs.len)
-    count = 0
-  
-  for i, f in fs:
-    f.callback = proc(g: Future[T]) =
-      items[i] = g.read
-      count += 1
-      if count == fs.len:
-        result.complete(items)

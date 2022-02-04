@@ -1,12 +1,13 @@
 import asyncdispatch
 import options
 import algorithm
-import posix
+import os
 
 import winim
 
 import utils
 import client
+import interrupt_handler
 
 type
   ClientHandler* = ref object of RootObj
@@ -14,15 +15,17 @@ type
     managed_handles: seq[HWND]
     clients: seq[Client]
 
-proc initClientHandler*(client_cls: proc(handle: HWND): Client = initClient): ClientHandler =
+  KeyboardInterruptError* = object of CatchableError
+
+proc initClientHandler*(run_default_interrupt_handler: bool = true, client_cls: proc(handle: HWND): Client = initClient): ClientHandler =
   ## Constructor for ClientHandler. Should use this instead of using type directly
   new(result)
   result.client_cls = client_cls
 
-template registerInterruptHandler*(body: untyped) =
-  ## This should help with console interrupt, but it does not. A real solution is needed
-  onSignal(SIGINT, SIGTERM):
-    body
+  if run_default_interrupt_handler:
+    registerInterruptHandler:
+      raise newException(KeyboardInterruptError, "")
+    startConsoleInterruptLoop()
 
 method installLocation*(self: ClientHandler): Option[string] {.base.} =
   ## Wizard101 install location
@@ -78,12 +81,17 @@ method getOrderedClients*(self: ClientHandler): seq[Client] {.base.} =
   ## Get clients ordered by their position on screen
   orderClients(self.clients)
 
-# TODO
-# method activateAllClientHooks*(self: ClientHandler) = discard
+method activateAllClientHooks*(self: ClientHandler, wait_for_ready: bool = true) {.base, async.} =
+  var awaitables: seq[Future[void]]
+  for c in self.clients:
+    awaitables.add(c.activateHooks(wait_for_ready=wait_for_ready))
+
+  await all(awaitables)
 
 # TODO
 # method activateAllClientMouseless*(self: ClientHandler)
 
-# TODO
-# method close
+method close*(self: ClientHandler) {.base, async.} =
+  for c in self.clients:
+    await c.close()
 
