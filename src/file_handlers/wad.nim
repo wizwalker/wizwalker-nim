@@ -5,6 +5,9 @@ import std/[strformat, strutils]
 import std/os
 import std/sequtils
 import std/options
+import std/streams
+import std/threadpool
+{.experimental: "parallel".}
 
 import zippy
 
@@ -137,7 +140,7 @@ proc getInfo*(self: Wad, name: string): WadFileInfo =
 proc read(self: Wad, offset: int, size: int): string =
   self.open()
   result = newString(size)
-  copyMem(addr(result[0]), cast[pointer](cast[ByteAddress](self.file_ptr) + offset), size) # TODO: Maybe avoid copy
+  copyMem(addr(result[0]), cast[pointer](cast[ByteAddress](self.file_ptr) + offset), size)
 
 proc read*(self: Wad, name: string): string =
   ## Read a file's contents
@@ -161,18 +164,39 @@ proc unpackAll*(self: Wad, target_path: string) =
   ## Unarchive a wad into target_path
   self.open()
   let path = target_path.strip(chars={'/'}, leading=false).absolutePath()
+
+  var known_dirs: HashSet[string]
+
+  var fileindex: seq[(string, pointer, int, int, bool)]
+
   for file in self.file_map.values():
     let
       filepath = &"{path}/{file.name}"
-      data = self.read(file.name)
-    createDir((&"{path}/{file.name}").parentDir())
-    let file_handle = io.open(filepath, fmWrite)
-    if data.len() == 0:
-      file_handle.close()
-      continue
-    file_handle.write(data)
-    file_handle.close()
 
+    if file.is_zip:
+      file_index.add((filepath, self.file_ptr, file.offset, file.zipped_size, true))
+    else:
+      file_index.add((filepath, self.file_ptr, file.offset, file.size, false))
+
+
+  # filepath, mem_ptr, start, size, is_zip
+  proc worker(v: (string, pointer, int, int, bool)) =
+    let dir_path = v[0].parentDir()
+    createDir(dir_path)
+
+    var data = newString(v[3])
+    copyMem(addr(data[0]), cast[pointer](cast[ByteAddress](v[1]) + v[2]), v[3])
+    if v[4]:
+      data = uncompress(data, dfZlib)
+
+    var fh = io.open(v[0], fmWrite)
+    fh.write(data)
+    fh.close()
+
+  parallel:
+    for x in fileindex:
+      spawn worker(x)
+  sync()
 
 when isMainmodule:
   import times
