@@ -1,5 +1,6 @@
 import strformat
 import options
+import strutils
 
 import memory_handler
 import handler
@@ -51,6 +52,13 @@ template buildSimpleXYZReadWritePair*(self_name: typed, name: untyped, offset: i
   proc `write name`*(self: self_name, val: XYZ) =
     self.`writeXYZToOffset`(offset, val)
 
+template buildSimpleEnumReadWritePair*(self_name: typed, name, t: untyped, offset: int) {.dirty.} =
+  proc name*(self: self_name): t =
+    t(self.readValueFromOffset(offset, int32))
+
+  proc `write name`*(self: self_name, val: t) =
+    self.writeValueToOffset(offset, val.int32)
+
 template buildReadWriteBuilders*(self_name: untyped) {.dirty.} =
   template buildValueReadWrite(name, t: untyped, offset: int) =
     buildSimpleValueReadWritePair(self_name, name, t, offset)
@@ -60,6 +68,9 @@ template buildReadWriteBuilders*(self_name: untyped) {.dirty.} =
 
   template buildXYZReadWrite(name: untyped, offset: int) =
     buildSimpleXYZReadWritePair(self_name, name, offset)
+
+  template buildEnumReadWrite(name, t: untyped, offset: int) =
+    buildSimpleEnumReadWritePair(self_name, name, t, offset)
 
   template buildVecRead(name, t: untyped, offset) =
     proc name*(self: self_name): seq[t] =
@@ -152,4 +163,4 @@ proc readTypeName*(self: PropertyClass): string =
     lea_target = actual_class_name_getter + 66
     rip_offset = self.memory_handler.read(lea_target, int32)
     type_name_addr = lea_instruction + rip_offset + 7
-  self.memory_handler.readNullTerminatedString(type_name_addr, 60)
+  self.memory_handler.readNullTerminatedString(type_name_addr, 60).strip()

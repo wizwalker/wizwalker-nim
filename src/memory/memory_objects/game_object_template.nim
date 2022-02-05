@@ -20,8 +20,7 @@ buildValueReadWrite(exemptFromAoi, bool, 240)
 buildStringReadWrite(displayName, 168)
 buildStringReadWrite(description, 136)
 
-proc objectType*(self: WizGameObjectTemplate): ObjectType =
-  self.readValueFromOffset(200, int32).ObjectType
+buildEnumReadWrite(objectType, ObjectType, 200)
 
 buildStringReadWrite(icon, 208)
 buildStringReadWrite(lootTable, 280)
