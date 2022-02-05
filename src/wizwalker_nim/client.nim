@@ -65,7 +65,7 @@ method login*(self: Client, username, password: string) {.base.} =
   ## Login this client
   self.process_handle.instanceLogin(username, password)
 
-method sendKey*(self: Client, key: Keycode, seconds: float = 0.0) {.base, async.} =
+method sendKey*(self: Client, key: int32, seconds: float = 0.0) {.base, async.} =
   ## Send a key
   await timedSendKey(self.window_handle, key, seconds)
 
@@ -92,7 +92,7 @@ method teleport*(self: Client, pos: XYZ, yaw: Option[float32] = none(float32), m
   self.body.writePosition(pos)
 
   if move_after:
-    await self.sendKey(Keycode.D, 0.1)
+    await self.sendKey(Keycode["D"], 0.1)
 
   if yaw.isSome():
     self.body.writeYaw(yaw.get())

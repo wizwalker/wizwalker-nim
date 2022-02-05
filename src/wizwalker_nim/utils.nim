@@ -222,12 +222,12 @@ proc checkIfProcessRunning*(process_handle: HANDLE): bool =
   discard process_handle.GetWindowThreadProcessId(addr(exit_code))
   result = exit_code == 259 # IS_ALIVE
 
-proc sendKeydownForever(handle: HWND, key: Keycode) {.async.} =
+proc sendKeydownForever(handle: HWND, key: int32) {.async.} =
   while true:
-    handle.SendMessage(0x100, key.int32, 0)
+    handle.SendMessage(0x100, key, 0)
     await sleepAsync(50)
 
-proc timedSendKey*(handle: HWND, key: Keycode, seconds: float) {.async.} =
+proc timedSendKey*(handle: HWND, key: int32, seconds: float) {.async.} =
   ## Send a key for a number of seconds
   discard await handle.sendKeydownForever(key).withTimeout((seconds * 1000).int)
 
