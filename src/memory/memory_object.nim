@@ -17,10 +17,61 @@ proc init*(self: MemoryObject, memory_handler: MemoryHandler, hook_handler: Hook
   if base_address.isSome() and base_address.get() == 0:
     # TODO: Confirm if this does what it should
     raise newException(ResourceExhaustedError, &"Dynamic object {$typeof(self)} passed 0 base address")
+  elif base_address.isSome():
+    self.is_dynamic = true
 
   self.base_address = base_address
   self.memory_handler = memory_handler
   self.hook_handler = hook_handler
+
+proc createDynamicMemoryObject*[T](self: MemoryObject, t: typedesc[T], address: ByteAddress): T =
+  result = T()
+  result.init(memory_handler = self.memory_handler, hook_handler = self.hook_handler, base_address = some(address))
+
+
+template buildSimpleValueReadWritePair*(self_name: typed, name, t: untyped, offset: int) {.dirty.} =
+  # build the basic readValueFromOffset pairs
+  proc name*(self: self_name): t =
+    self.readValueFromOffset(offset, t)
+
+  proc `write name`*(self: self_name, val: t) =
+    self.writeValueToOffset(offset, val)
+
+template buildSimpleContainerReadWritePair*(self_name: typed, name, t: untyped, offset: int) {.dirty.} =
+  # build the basic container (readVectorFromOffset-style) pairs
+  proc name*(self: self_name): t =
+    self.`read t FromOffset`(offset, t)
+
+  proc `write name`*(self: self_name, val: t) =
+    self.`write t ToOffset`(offset, val)
+
+template buildSimpleStringReadWritePair*(self_name: typed, name: untyped, offset: int) {.dirty.} =
+  proc name*(self: self_name): string =
+    self.`readStringFromOffset`(offset)
+
+  proc `write name`*(self: self_name, val: string) =
+    self.`writeStringToOffset`(offset, val)
+
+template buildSimpleXYZReadWritePair*(self_name: typed, name: untyped, offset: int) {.dirty.} =
+  proc name*(self: self_name): XYZ =
+    self.`readXYZFromOffset`(offset)
+
+  proc `write name`*(self: self_name, val: XYZ) =
+    self.`writeXYZToOffset`(offset, val)
+
+template buildReadWriteBuilders*(self_name: untyped) {.dirty.} =
+  template buildValueReadWrite(name, t: untyped, offset: int) =
+    buildSimpleValueReadWritePair(self_name, name, t, offset)
+
+  template buildContainerReadWrite(name, t: untyped, offset: int) =
+    buildSimpleContainerReadWritePair(self_name, name, t, offset)
+
+  template buildStringReadWrite(name: untyped, offset: int) =
+    buildSimpleStringReadWritePair(self_name, name, offset)
+
+  template buildXYZReadWrite(name: untyped, offset: int) =
+    buildSimpleXYZReadWritePair(self_name, name, offset)
+
 
 method `==`*(self: MemoryObject, other: MemoryObject): bool {.base.} =
   ## Helper for comparison

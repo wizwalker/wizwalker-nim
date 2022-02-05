@@ -5,13 +5,9 @@ import behavior_template
 
 type BehaviorInstance* = ref object of PropertyClass
 
-proc behaviorTemplateNameId*(self: BehaviorInstance): uint32 =
-  ## The id of this name
-  self.readValueFromOffset(104, uint32)
+buildReadWriteBuilders(BehaviorInstance)
 
-proc writeBehaviorTemplateNameId*(self: BehaviorInstance, val: uint32) =
-  ## Write a new name id
-  self.writeValueToOffset(104, val)
+buildValueReadWrite(behaviorTemplateId, uint32, 104)
 
 proc behaviorTemplate*(self: BehaviorInstance): Option[BehaviorTemplate] =
   ## Associated behavior template
@@ -19,5 +15,5 @@ proc behaviorTemplate*(self: BehaviorInstance): Option[BehaviorTemplate] =
 
   if address == 0:
     return none(BehaviorTemplate)
-
-  some(BehaviorTemplate().init(memory_handler=self.memory_handler, hook_handler=self.hook_handler, base_address=some(address)))
+  
+  some(self.createDynamicMemoryObject(BehaviorTemplate, address))

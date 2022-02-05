@@ -7,6 +7,7 @@ import wad
 
 type
   WizFileSystem = ref object # not public because this is a global
+    # Maybe storing WadRef is a really bad idea
     wad_index: Table[string, (WadRef, Table[string, WadFileInfo])] # Table[wad_name, (wad_handle, Table[file_name, info])]
     value_cache: Table[string, string] # Table[name, bytes]
 
