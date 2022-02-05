@@ -20,7 +20,7 @@ proc main() {.async.} =
 
     let listener = HotkeyListener()
     listener.addHotkey(
-      Keycode.Q,
+      Keycode["Q"],
       handleQuestTpHotkey,
       { Modifier.SHIFT, Modifier.NOREPEAT }
     )
