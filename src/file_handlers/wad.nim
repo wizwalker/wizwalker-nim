@@ -16,7 +16,7 @@ import ../utils
 const wad_no_compress = [".mp3", ".ogg"].toHashSet()
 
 type
-  Wad* = ref object of RootObj
+  Wad* = object
     path*: string
     name*: string
     file_map: Table[string, WadFileInfo]
@@ -24,6 +24,8 @@ type
     file_ptr: pointer
     size: int
     refreshed_once: bool
+
+  WadRef* = ref Wad
 
   WadFileInfo* = ref object of RootObj
     name*: string
@@ -33,22 +35,25 @@ type
     is_zip*: bool
     crc*: int
 
-proc destroy(self: Wad) =
-  if not (self.file_ptr == nil):
+proc destroy(self: var Wad) =
+  if self.file_ptr != nil:
     self.file_ptr = nil
     self.mapped_file.close()
 
-proc close*(self: Wad) =
-  ## Close the file handle. This must be called explicitly when the Wad is done being used
+proc `destroy=`(self: var Wad) =
   self.destroy()
 
-proc init(self: Wad, path: string) =
+proc close*(self: WadRef) =
+  ## Close the file handle. Normally this does not have to be used explicitly
+  self[].destroy()
+
+proc init(self: WadRef, path: string) =
   self.path = path
   self.name = path.extractFilename()
 
-proc wadFromGameData*(name: string): Wad =
+proc wadFromGameData*(name: string): WadRef =
   ## Load a Wad from Data/GameData/
-  new(result)
+  new(result, close)
   let path = &"{getWizInstall().get()}/Data/GameData/{name}.wad"
   result.init(path)
 
@@ -62,7 +67,7 @@ template readWithOffset[T](p: pointer, t: typedesc[T]): T =
   cur_read_offset += sizeof(T)
   cast[ptr T](cast[ByteAddress](p) + cur_read_offset - sizeof(T))[]
 
-proc refreshJournal(self: Wad) =
+proc refreshJournal(self: WadRef) =
   if self.refreshed_once:
     return
 
@@ -99,7 +104,7 @@ proc refreshJournal(self: Wad) =
         crc : crc
       )
 
-proc open(self: Wad) =
+proc open(self: WadRef) =
   if not (self.file_ptr == nil):
     return
 
@@ -107,7 +112,7 @@ proc open(self: Wad) =
   self.file_ptr = self.mapped_file.mapMem()
   self.refresh_journal()
 
-proc getSize*(self: Wad): int =
+proc getSize*(self: WadRef): int =
   ## Sets the size of the Wad instance and returns it
   self.open()
 
@@ -118,17 +123,17 @@ proc getSize*(self: Wad): int =
     result += f.size
   self.size = result
 
-proc nameList*(self: Wad): seq[string] =
+proc nameList*(self: WadRef): seq[string] =
   ## List of all file names in this wad
   self.open()
   result = self.file_map.keys().toSeq()
 
-proc infoList*(self: Wad): seq[WadFileInfo] =
+proc infoList*(self: WadRef): seq[WadFileInfo] =
   ## List of all WadFileInfo in this wad
   self.open()
   result = self.file_map.values().toSeq()
 
-proc getInfo*(self: Wad, name: string): WadFileInfo = 
+proc getInfo*(self: WadRef, name: string): WadFileInfo = 
   ## Gets WadFileInfo for a named file
   self.open()
 
@@ -137,12 +142,12 @@ proc getInfo*(self: Wad, name: string): WadFileInfo =
   except KeyError:
     raise newException(ValueError, &"File {name} not found")
 
-proc read(self: Wad, offset: int, size: int): string =
+proc read(self: WadRef, offset: int, size: int): string =
   self.open()
   result = newString(size)
   copyMem(addr(result[0]), cast[pointer](cast[ByteAddress](self.file_ptr) + offset), size)
 
-proc read*(self: Wad, name: string): string =
+proc read*(self: WadRef, name: string): string =
   ## Read a file's contents
   self.open()
 
@@ -158,9 +163,9 @@ proc read*(self: Wad, name: string): string =
     return ""
 
   if target_file.is_zip:
-    result = uncompress(result)
+    result = uncompress(result, dfZlib)
 
-proc unpackAll*(self: Wad, target_path: string) =
+proc unpackAll*(self: WadRef, target_path: string) =
   ## Unarchive a wad into target_path
   self.open()
   let path = target_path.strip(chars={'/'}, leading=false).absolutePath()
@@ -201,9 +206,7 @@ proc unpackAll*(self: Wad, target_path: string) =
 when isMainmodule:
   import times
 
-  let root_wad = wadFromGameData("Root")
+  let root_wad = wadFromGameData("WizardCity-TreasureTower-WC_TT01_Fire_L12")
   let start = cpuTime()
-  root_wad.unpackAll("C:/wadtest/Root")
+  root_wad.unpackAll("C:/wadtest/WizardCity-TreasureTower-WC_TT01_Fire_L12")
   echo &"Extraction took {cpuTime() - start}s"
-  root_wad.close()
-
