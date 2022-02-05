@@ -5,6 +5,7 @@ import spell
 import spell_effect
 import play_deck
 import game_stats
+import wiz_enums
 
 type CombatParticipant* = ref object of PropertyClass
 
@@ -95,3 +96,51 @@ proc delayCastEffects*(self: CombatParticipant): seq[SpellEffect] =
   for address in self.readLinkedListFromOffset(520):
     result.add(self.createDynamicMemoryObject(SpellEffect, address))
 
+buildValueReadWrite(polymorthSpellTemplateId, uint32, 568)
+buildStringReadWrite(side, 592)
+buildValueReadWrite(shadowSpellsDisabled, bool, 637)
+buildValueReadWrite(bossMob, bool, 638)
+buildValueReadWrite(hidePvpEnemyChat, bool, 639)
+buildValueReadWrite(combatTriggerIds, int32, 664)
+buildValueReadWrite(backlash, int32, 692)
+buildValueReadWrite(pastBacklash, int32, 696)
+buildValueReadWrite(shadowCreatureLevel, int32, 700)
+buildValueReadWrite(pastShadowCreatureLevel, int32, 704)
+buildValueReadWrite(shadowCreatureLevelCount, int32, 712)
+
+proc interceptEffect*(self: CombatParticipant): Option[SpellEffect] =
+  let address = self.readValueFromOffset(736, ByteAddress)
+  if address != 0:
+    return some(self.createDynamicMemoryObject(SpellEffect, address))
+
+proc polymorthEffect*(self: CombatParticipant): Option[SpellEffect] =
+  let address = self.readValueFromOffset(792, ByteAddress)
+  if address != 0:
+    return some(self.createDynamicMemoryObject(SpellEffect, address))
+
+buildValueReadWrite(roundsSinceShadowPip, int32, 768)
+buildValueReadWrite(confused, int32, 188)
+buildValueReadWrite(confusionTrigger, int32, 192)
+buildValueReadWrite(confusionDisplay, int32, 196)
+buildValueReadWrite(confusedTarget, bool, 197)
+buildValueReadWrite(untargetable, bool, 198)
+buildValueReadWrite(untargetableRounds, int32, 200)
+buildValueReadWrite(restrictedTarget, bool, 204)
+buildValueReadWrite(exitCombat, bool, 205)
+buildValueReadWrite(stunnedDisplay, bool, 184)
+buildValueReadWrite(mindcontrolledDisplay, bool, 212)
+buildValueReadWrite(autoPass, bool, 688)
+buildValueReadWrite(vanish, bool, 689)
+buildValueReadWrite(myTeamTurn, bool, 690)
+buildEnumReadWrite(planningPhasePipAcquiredType, PipAcquiredByEnum, 784)
+buildValueReadWrite(isMonster, uint32, 400)
+buildValueReadWrite(petCombatTrigger, int32, 680)
+buildValueReadWrite(petCombatTriggerTarget, int32, 684)
+buildValueReadWrite(shadowPipRateThreshold, float32, 808)
+buildValueReadWrite(baseSpellDamage, int32, 812)
+buildValueReadWrite(statDamage, float32, 816)
+buildValueReadWrite(statResist, float32, 820)
+buildValueReadWrite(statPierce, float32, 824)
+buildValueReadWrite(mobLevel, int32, 828)
+buildValueReadWrite(playTimeUpdate, bool, 832)
+buildValueReadWrite(playTimeEliminated, bool, 833)
