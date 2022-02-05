@@ -299,20 +299,20 @@ proc readSharedVector*(self: MemoryHandler, address: ByteAddress, max_count: int
     result.add(cast[ptr ByteAddress](addr data[offset])[])
     offset += 16
 
-proc readDynamicVector*(self: MemoryHandler, address: ByteAddress): seq[ByteAddress] =
-  ## Read a dynamic vector from memory. Note: dynamic means pointers to T
+proc readDynamicVector*[T](self: MemoryHandler, address: ByteAddress, t: typedesc[T]): seq[T] =
+  ## Read a dynamic vector from memory
   let
     start_address = self.read(address, ByteAddress)
     end_address = self.read(address + 8, ByteAddress)
-    size = (end_address - start_address) div sizeof(pointer)
+    size = (end_address - start_address) div sizeof(T)
 
   if size == 0:
     return @[]
 
   var current_address = start_address
   for _ in 0 ..< size:
-    result.add(self.read(current_address, ByteAddress))
-    current_address += sizeof(pointer)
+    result.add(self.read(current_address, T))
+    current_address += sizeof(T)
 
 proc readSharedLinkedList*(self: MemoryHandler, address: ByteAddress): seq[ByteAddress] =
   ## Read a shared linked list

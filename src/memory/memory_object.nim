@@ -37,14 +37,6 @@ template buildSimpleValueReadWritePair*(self_name: typed, name, t: untyped, offs
   proc `write name`*(self: self_name, val: t) =
     self.writeValueToOffset(offset, val)
 
-template buildSimpleContainerReadWritePair*(self_name: typed, name, t: untyped, offset: int) {.dirty.} =
-  # build the basic container (readVectorFromOffset-style) pairs
-  proc name*(self: self_name): t =
-    self.`read t FromOffset`(offset, t)
-
-  proc `write name`*(self: self_name, val: t) =
-    self.`write t ToOffset`(offset, val)
-
 template buildSimpleStringReadWritePair*(self_name: typed, name: untyped, offset: int) {.dirty.} =
   proc name*(self: self_name): string =
     self.`readStringFromOffset`(offset)
@@ -63,14 +55,15 @@ template buildReadWriteBuilders*(self_name: untyped) {.dirty.} =
   template buildValueReadWrite(name, t: untyped, offset: int) =
     buildSimpleValueReadWritePair(self_name, name, t, offset)
 
-  template buildContainerReadWrite(name, t: untyped, offset: int) =
-    buildSimpleContainerReadWritePair(self_name, name, t, offset)
-
   template buildStringReadWrite(name: untyped, offset: int) =
     buildSimpleStringReadWritePair(self_name, name, offset)
 
   template buildXYZReadWrite(name: untyped, offset: int) =
     buildSimpleXYZReadWritePair(self_name, name, offset)
+
+  template buildVecRead(name, t: untyped, offset) =
+    proc name*(self: self_name): seq[t] =
+      self.readDynamicVectorFromOffset(offset, t)
 
 
 method `==`*(self: MemoryObject, other: MemoryObject): bool {.base.} =
@@ -128,9 +121,9 @@ proc readSharedVectorFromOffset*(self: MemoryObject, offset: int, max_count: int
   ## Read a shared vector from object offset
   self.memory_handler.readSharedVector(self.readBaseAddress() + offset, max_count)
 
-proc readDynamicVectorFromOffset*(self: MemoryObject, offset: int): seq[ByteAddress] =
-  ## Read a dynamic (pointer) vector from object offset
-  self.memory_handler.readDynamicVector(self.readBaseAddress() + offset)
+proc readDynamicVectorFromOffset*[T](self: MemoryObject, offset: int, t: typedesc[T]): seq[T] =
+  ## Read a dynamic vector from object offset
+  self.memory_handler.readDynamicVector(self.readBaseAddress() + offset, T)
 
 proc readSharedLinkedListFromOffset*(self: MemoryObject, offset: int): seq[ByteAddress] =
   ## Read a shared linked list from object offset

@@ -6,7 +6,7 @@ type WizGameObjectTemplate* = ref object of PropertyClass
 
 proc behaviors*(self: WizGameObjectTemplate): seq[BehaviorTemplate] =
   ## Gets the behaviors of the object template
-  for address in self.readDynamicVectorFromOffset(72):
+  for address in self.readDynamicVectorFromOffset(72, ByteAddress):
     if address != 0:
       result.add(self.createDynamicMemoryObject(BehaviorTemplate, address))
 
