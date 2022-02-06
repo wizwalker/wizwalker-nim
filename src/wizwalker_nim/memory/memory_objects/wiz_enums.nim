@@ -37,6 +37,41 @@ type
     first = 1
     second = 2
 
+  WindowStyle* {.pure.} = enum
+    has_back = 0
+    scale_children = 1
+    can_move = 2
+    can_scroll = 4
+    can_dock = 5
+    focus_locked = 6
+    can_focus = 7
+    is_transparent = 8
+    effect_fadeid = 9
+    effect_highlight = 10
+    has_no_border = 11
+    ignore_parent_scale = 12
+    use_alpha_bounds = 13
+    auto_grow = 14
+    auto_shrink = 15
+
+  WindowStyles* = set[WindowStyle]
+
+  WindowFlag* {.pure.} = enum
+    visible = 0
+    noclip = 1
+    dock_left = 7
+    dock_right = 8
+    dock_top = 9
+    dock_bottom = 10
+    hcenter = 15
+    vcenter = 16
+    dock_outside = 17
+    parent_width = 18
+    parent_height = 19
+    disabled = 31
+
+  WindowFlags* = set[WindowFlag]
+
   SpellSourceType* {.pure.} = enum
     caster = 0
     pet = 1
@@ -253,3 +288,7 @@ type
     transition = 3
     online = 4
     ignored = 5
+
+const
+  style_auto_resize* = {WindowStyle.auto_shrink, WindowStyle.auto_grow}
+  flag_parent_size* = {WindowFlag.parent_width, WindowFlag.parent_height}

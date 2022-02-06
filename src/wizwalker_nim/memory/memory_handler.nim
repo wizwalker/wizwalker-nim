@@ -11,11 +11,12 @@ import ../utils
 const max_string_len = 5000
 
 type MemoryHandler* = ref object
-  process_handle: HANDLE
+  process_handle*: HANDLE
+  window_handle*: HWND
 
-proc initMemoryHandler*(process_handle: HANDLE): MemoryHandler =
+proc initMemoryHandler*(process_handle: HANDLE, window_handle: HWND): MemoryHandler =
   ## Creates a new MemoryHandler. Only one should be active per wizard101 client
-  MemoryHandler(process_handle : process_handle)
+  MemoryHandler(process_handle : process_handle, window_handle : window_handle)
 
 proc is_running*(self: MemoryHandler): bool =
   ## If the process we're reading/writing to/from is running

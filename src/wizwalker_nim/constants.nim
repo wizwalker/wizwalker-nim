@@ -162,4 +162,4 @@ type
     SHIFT = 2
     NOREPEAT = 14
 
-  ModifierFlags* = set[Modifier] # TODO: Check if this works
+  ModifierFlags* = set[Modifier]

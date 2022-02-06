@@ -40,7 +40,7 @@ method process_id*(self: Client): int32 {.base.} =
 proc initClient*(window_handle: HWND): Client =
   result = Client(window_handle : window_handle)
   result.process_handle = OpenProcess(PROCESS_ALL_ACCESS, false, result.process_id())
-  result.memory_handler = initMemoryHandler(result.process_handle)
+  result.memory_handler = initMemoryHandler(result.process_handle, result.window_handle)
   result.hook_handler = initHookHandler(result.memory_handler)
 
   result.stats = CurrentGameStats(memory_handler : result.memory_handler, hook_handler : result.hook_handler)
