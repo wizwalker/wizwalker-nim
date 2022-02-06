@@ -1,10 +1,10 @@
 import std/asyncdispatch
 import std/tables
+import std/strformat
 
 import ../src/wizwalker_nim/client
 import ../src/wizwalker_nim/client_handler
-import ../src/wizwalker_nim/memory/memory_objects/window
-import ../src/wizwalker_nim/memory/handler
+import ../src/wizwalker_nim/memory/instance_finder
 
 import times
 
@@ -14,9 +14,11 @@ proc main() {.async.} =
     c {.global.} = client_handler.getNewClients()[0]
 
   try:
-    await c.hook_handler.activateRootWindowHook()
-
-    c.root_window.debugPrintUITree()
+    let finder = InstanceFinder(memory_handler : c.memory_handler, class_name : "ElasticCamController")
+    let start = cpuTime()
+    let instances = finder.getInstances()
+    echo &"Getting camera instance took {cpuTime() - start}s"
+    echo instances
 
   finally:
     echo "Closing"

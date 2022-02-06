@@ -155,6 +155,8 @@ const
     "Clear_2": 254
   }.toTable()
 
+  wiz_exe_name* = "WizardGraphicalClient.exe"
+
 type
   Modifier* {.pure.} = enum
     ALT = 0,

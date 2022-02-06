@@ -155,7 +155,7 @@ proc startInstance*() =
   case getWizInstall()
   of Some(@path):
     discard startProcess(
-      &"{path}/Bin/WizardGraphicalClient.exe",
+      &"{path}/Bin/{wiz_exe_name}",
       &"{path}/Bin",
       args=["-L", "login.us.wizard101.com", "12000"]
     )
@@ -269,10 +269,10 @@ template toBytes*[T](v: T): untyped =
   ## Helper to convert "flat" types to bytes
   cast[array[sizeof(T), byte]](v)
 
-proc escapeByteRegex*(v: string): string = 
+proc escapeByteRegex*(v: string, exclusions: seq[string] = @[]): string = 
   ## Helper to escape bytes that happen to have a meaning in pcre regex.
   ## This should be prime suspect #1 if patterns don't work for no reason
-  v.multiReplace(
+  const all_replaces = @[
     ("+", "\\+"),
     ("*", "\\*"),
     ("?", "\\?"),
@@ -280,7 +280,17 @@ proc escapeByteRegex*(v: string): string =
     ("$", "\\$"),
     ("(", "\\("),
     (")", "\\)"),
+    ("\\", "\\\\"),
     ("{", "\\{"), # only opening one is evil
     ("[", "\\["), # same here
     ("|", "\\|"), # TODO: Think about this some more
-  )
+  ]
+  var to_replace: seq[(string, string)]
+  for r in all_replaces:
+    var should_replace = true
+    for ex in exclusions:
+      if r[0] == ex:
+        should_replace = false
+    if should_replace:
+      to_replace.add(r)
+  v.multiReplace(to_replace)
