@@ -13,7 +13,7 @@ type
   ClientHandler* = ref object of RootObj
     client_cls: proc(handle: HWND): Client ## Client constructor
     managed_handles: seq[HWND]
-    clients: seq[Client]
+    clients*: seq[Client]
 
   KeyboardInterruptError* = object of CatchableError
 
