@@ -1,4 +1,5 @@
 import std/asyncdispatch
+import std/tables
 
 import ../src/client
 import ../src/client_handler

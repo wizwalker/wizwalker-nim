@@ -1,6 +1,7 @@
 import asyncdispatch
 import options
 import winim
+import tables
 
 import utils
 import constants
