@@ -154,10 +154,11 @@ proc readBytes*(self: MemoryHandler, address: ByteAddress, size: int): string =
   if not address > 0 or address >= 0x7FFFFFFFFFFFFFFF:
     raise newException(ResourceExhaustedError, "Address out of range: " & address.toHex())
   
-  result = newString(size)
-  let success = self.process_handle.ReadProcessMemory(cast[pointer](address), addr(result[0]), size, nil)
-  if success == 0:
-    raise newException(OSError, "Failed to read from address " & address.toHex())
+  if size > 0:
+    result = newString(size)
+    let success = self.process_handle.ReadProcessMemory(cast[pointer](address), addr(result[0]), size, nil)
+    if success == 0:
+      raise newException(OSError, "Failed to read from address " & address.toHex())
 
 proc writeBytes*(self: MemoryHandler, address: ByteAddress, value: string) =
   ## Write bytes to memory
@@ -187,7 +188,7 @@ proc readNullTerminatedString*(self: MemoryHandler, address: ByteAddress, max_si
   elif string_end == -1:
     raise newException(ResourceExhaustedError, "Missing end byte for string at " & $address.toHex())
 
-  bytes[0 ..< string_end]
+  bytes[0 ..< string_end].strip()
 
 proc readWideString*(self: MemoryHandler, address: ByteAddress): string =
   ## Read a wide string from memory

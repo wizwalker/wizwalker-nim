@@ -177,7 +177,7 @@ proc instanceLogin*(window_handle: HWND, username, password: string) =
 proc startInstancesWithLogin*(instance_number: int, logins: seq[string]) =
   discard
 
-proc waitForValue*[T](coro: proc(): Future[T], want: T, sleep_time: float = 0.5, ignore_errors: bool = true): Future[T] {.async.} =
+proc waitForValue*[T](coro: proc(): Future[T], want: T, sleep_time: float = 0.1, ignore_errors: bool = true): Future[T] {.async.} =
   ## Wait for a coro to return a value
   while true:
     try:

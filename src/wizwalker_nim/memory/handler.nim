@@ -14,6 +14,7 @@ type
     memory_handler: MemoryHandler
     active_hooks: seq[MemoryHook]
     base_addrs: Table[string, ByteAddress]
+    is_hooked: bool
 
 proc initHookHandler*(memory_handler: MemoryHandler): HookHandler =
   HookHandler(memory_handler : memory_handler)
@@ -53,6 +54,7 @@ proc allocateAutobotBytes(self: HookHandler, size: int): int =
 
 proc close*(self: HookHandler) {.async.} = 
   ## Closes the HookHandler instance
+  self.is_hooked = false
   for h in self.active_hooks:
     h.unhook()
   self.active_hooks = @[]
@@ -97,6 +99,9 @@ proc waitForValue(self: HookHandler, address: ByteAddress, timeout_seconds: floa
 
 template createHookToggles*(typename: typed, exported: string) {.dirty.} =
   proc `activate typename`*(self: HookHandler, wait_for_ready: bool = true, timeout: float = -1.0) {.async.} =
+    if self.autobot_address == 0:
+      self.prepareAutobot()
+    self.is_hooked = true
     if self.checkIfHookActive(typename):
       let name = $typename
       raise newException(ValueError, &"{name} activated twice")

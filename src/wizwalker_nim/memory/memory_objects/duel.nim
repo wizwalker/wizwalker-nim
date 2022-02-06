@@ -9,7 +9,7 @@ type
   Duel* = ref object of PropertyClass
   CurrentDuel* = ref object of Duel
 
-proc readBaseAddress*(self: CurrentDuel): ByteAddress =
+method readBaseAddress*(self: CurrentDuel): ByteAddress =
   self.hook_handler.readCurrentPlayerHookBase()
 
 proc participantList(self: Duel): seq[CombatParticipant] =

@@ -4,7 +4,7 @@ type
   RenderContext* = ref object of MemoryObject
   CurrentRenderContext* = ref object of RenderContext
 
-proc readBaseAddress*(self: CurrentRenderContext): ByteAddress =
+method readBaseAddress*(self: CurrentRenderContext): ByteAddress =
   self.hook_handler.readCurrentRenderContextHookBase()
 
 proc uiScale*(self: RenderContext): float32 =
