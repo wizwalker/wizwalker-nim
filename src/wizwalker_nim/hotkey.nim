@@ -13,7 +13,7 @@ type
     hotkey_id_list: seq[bool]
 
   GlobalHotkeyMessageLoop = ref object
-    messages: seq[(int32, ModifierFlags)]
+    messages: seq[(int, ModifierFlags)]
     connected_instances: int
     message_loop_delay: float
     running: bool
@@ -21,8 +21,8 @@ type
   HotkeyListener* = ref object
     ## The thing that allows you to register hotkeys
     sleep_time: float
-    hotkeys: Table[(int32, ModifierFlags), int32]
-    callbacks: Table[(int32, ModifierFlags), proc () {.async.}]
+    hotkeys: Table[(int, ModifierFlags), int32]
+    callbacks: Table[(int, ModifierFlags), proc () {.async.}]
     running: bool
     # TODO: Maybe switch to chronos async backend so cancellation exists
 
@@ -51,7 +51,7 @@ proc freeId(self: GlobalHotkeyIdentifierManager, hotkey_id: int) =
 var hotkey_id_manager {.global.} = GlobalHotkeyIdentifierManager(hotkey_id_list: @[])
 
 
-proc checkForMessage(self: GlobalHotkeyMessageLoop, keycode: int32, modifiers: ModifierFlags): bool =
+proc checkForMessage(self: GlobalHotkeyMessageLoop, keycode: int, modifiers: ModifierFlags): bool =
   if (keycode, modifiers) in self.messages:
     let idx = self.messages.find((keycode, modifiers))
     self.messages.del(idx)
@@ -66,7 +66,7 @@ proc messageLoop(self: GlobalHotkeyMessageLoop) {.async.} =
         modifiers = (message.lParam and 0b1111111111111111).int32
         keycode = (message.lParam shr 16).int32
 
-      self.messages.add((keycode, cast[ModifierFlags](modifiers)))
+      self.messages.add((keycode.int, cast[ModifierFlags](modifiers)))
 
     await sleepAsync((self.message_loop_delay * 1000).int)
 
@@ -89,7 +89,7 @@ proc setMessageLoopDelay(self: GlobalHotkeyMessageLoop, new_delay: float) =
 var hotkey_message_loop {.global.} = GlobalHotkeyMessageLoop(message_loop_delay : 0.1)
 
 
-proc handleHotkey(self: HotkeyListener, keycode: int32, modifiers: ModifierFlags) =
+proc handleHotkey(self: HotkeyListener, keycode: int, modifiers: ModifierFlags) =
   asyncCheck self.callbacks[(keycode, modifiers)]()
 
 proc messageLoop(self: HotkeyListener) {.async.} =
@@ -121,17 +121,17 @@ proc stop*(self: HotkeyListener) =
 
   self.running = false
 
-proc registerHotkey(self: HotkeyListener, key: int32, modifiers: ModifierFlags = {}): bool =
+proc registerHotkey(self: HotkeyListener, key: int, modifiers: ModifierFlags = {}): bool =
   let
     hotkey_id = hotkey_id_manager.getId()
-  result = RegisterHotKey(0, hotkey_id, cast[int32](modifiers), key).bool
+  result = RegisterHotKey(0, hotkey_id, cast[int32](modifiers), key.int32).bool
 
   if result:
     self.hotkeys[(key, modifiers)] = hotkey_id
   else:
     hotkey_id_manager.freeId(hotkey_id)
 
-proc addHotkey*(self: HotkeyListener, key: int32, callback: proc () {.async.}, modifiers: ModifierFlags = {}) = 
+proc addHotkey*(self: HotkeyListener, key: int, callback: proc () {.async.}, modifiers: ModifierFlags = {}) = 
   ## Register a new hotkey
   if self.registerHotkey(key, modifiers):
     var no_norepeat = modifiers
@@ -140,13 +140,13 @@ proc addHotkey*(self: HotkeyListener, key: int32, callback: proc () {.async.}, m
   else:
     raise newException(ValueError, &"{key} with modifiers {modifiers} already registered")
 
-proc unregisterHotkey(self: HotkeyListener, key: int32, modifiers: ModifierFlags = {}): bool =
+proc unregisterHotkey(self: HotkeyListener, key: int, modifiers: ModifierFlags = {}): bool =
   let hotkey_id = self.hotkeys[(key, modifiers)]
   result = UnregisterHotKey(0, hotkey_id).bool
   if result:
     hotkey_id_manager.freeId(hotkey_id)
 
-proc removeHotkey*(self: HotkeyListener, key: int32, modifiers: ModifierFlags = {}) =
+proc removeHotkey*(self: HotkeyListener, key: int, modifiers: ModifierFlags = {}) =
   ## Unregister a hotkey
   if not ((key, modifiers) in self.hotkeys):
     raise newException(ValueError, &"No hotkey registered for key {key} with modifiers {modifiers}")

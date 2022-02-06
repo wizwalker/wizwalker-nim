@@ -66,7 +66,7 @@ method login*(self: Client, username, password: string) {.base.} =
   ## Login this client
   self.process_handle.instanceLogin(username, password)
 
-method sendKey*(self: Client, key: int32, seconds: float = 0.0) {.base, async.} =
+method sendKey*(self: Client, key: int, seconds: float = 0.0) {.base, async.} =
   ## Send a key
   await timedSendKey(self.window_handle, key, seconds)
 
