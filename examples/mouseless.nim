@@ -1,8 +1,8 @@
 import std/asyncdispatch
 
-import ../src/wizwalker_nim/client
-import ../src/wizwalker_nim/mouse_handler
-import ../src/wizwalker_nim/client_handler
+import ../src/wizwalker/client
+import ../src/wizwalker/mouse_handler
+import ../src/wizwalker/client_handler
 
 proc main() {.async.} =
   var
@@ -15,6 +15,6 @@ proc main() {.async.} =
     await c.mouse_handler.clickWindowWithName("cancelButton")
   finally:
     echo "Closing"
-    await client_handler.close()
+    client_handler.close()
 
 waitFor main()

@@ -1,12 +1,11 @@
 import std/asyncdispatch
 import std/tables
 
-import ../src/wizwalker_nim/client
-import ../src/wizwalker_nim/client_handler
-import ../src/wizwalker_nim/hotkey
-import ../src/wizwalker_nim/constants
-import ../src/wizwalker_nim/memory/memory_objects/actor_body
-import ../src/wizwalker_nim/memory/memory_objects/quest_position
+import ../src/wizwalker/client
+import ../src/wizwalker/client_handler
+import ../src/wizwalker/hotkey
+import ../src/wizwalker/constants
+import ../src/wizwalker/memory/memory_objects/quest_position
 
 proc main() {.async.} =
   var
@@ -17,7 +16,7 @@ proc main() {.async.} =
     await c.activateHooks(wait_for_ready = false)
 
     proc handleQuestTpHotkey() {.async.} =
-      await c.teleport(c.quest_position.position(), move_after=false)
+      await c.teleport(c.quest_position.position())
 
     let listener = HotkeyListener()
     listener.addHotkey(
@@ -32,6 +31,6 @@ proc main() {.async.} =
     runForever()
   finally:
     echo "Closing"
-    await client_handler.close()
+    client_handler.close()
 
 waitFor main()

@@ -4,7 +4,6 @@
 
 import asyncdispatch
 import threadpool
-import os
 import winim
 
 proc getch(): cint {.header: "<conio.h>", importc: "_getch".}

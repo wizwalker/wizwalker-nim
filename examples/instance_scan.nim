@@ -2,9 +2,9 @@ import std/asyncdispatch
 import std/tables
 import std/strformat
 
-import ../src/wizwalker_nim/client
-import ../src/wizwalker_nim/client_handler
-import ../src/wizwalker_nim/memory/instance_finder
+import ../src/wizwalker/client
+import ../src/wizwalker/client_handler
+import ../src/wizwalker/memory/instance_finder
 
 import times
 
@@ -22,6 +22,6 @@ proc main() {.async.} =
 
   finally:
     echo "Closing"
-    await client_handler.close()
+    client_handler.close()
 
 waitFor main()
