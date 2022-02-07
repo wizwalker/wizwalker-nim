@@ -135,7 +135,7 @@ buildValueReadWrite(showPvpOption, uint32, 992)
 buildValueReadWrite(favoriteSlot, int32, 996)
 
 proc maxHitpoints*(self: GameStats): int32 =
-  discard
+  self.baseHitpoints() + self.bonusHitpoints()
 
 proc maxMana*(self: GameStats): int32 =
-  discard
+  self.baseMana() + self.bonusMana()

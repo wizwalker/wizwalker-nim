@@ -1,4 +1,4 @@
-when not compileOption("gc", "arc") or not compileOption("gc", "orc"):
+when not compileOption("gc", "arc") and not compileOption("gc", "orc"):
   {.error: "WizWalker-Nim/wad.nim must be compiled with --gc:arc or --gc:orc".}
 
 import std/tables

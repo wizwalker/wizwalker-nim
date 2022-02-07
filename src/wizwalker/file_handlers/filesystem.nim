@@ -96,6 +96,9 @@ proc getLangValue*(self: WizFileSystem, file_name: string, code: string): string
   ## Get value from a long file. Key/text agnostic
   self.getTrivialValue(string, makeLangKey(file_name, code)) # Less efficient if code and value are swapped
 
+proc getLangValueByCode*(self: WizFileSystem, code: string): string =
+  let parts = code.split("_", max_split=1)
+  self.getLangValue(parts[0], parts[1])
 
 
 when isMainModule:
