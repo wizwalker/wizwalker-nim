@@ -6,6 +6,7 @@ import tables
 import utils
 import constants
 import mouse_handler
+import combat/combat_handler
 import memory/memory_handler
 import memory/handler
 import memory/memory_objects/game_stats
@@ -15,6 +16,7 @@ import memory/memory_objects/quest_position
 import memory/memory_objects/client_object
 import memory/memory_objects/window
 import memory/memory_objects/render_context
+import memory/memory_objects/wiz_enums
 
 type
   Client* = ref object of RootObj
@@ -35,6 +37,8 @@ type
     render_context*: CurrentRenderContext
 
     is_infinite_patched: bool
+
+    combat_handler_cls: proc (mouse_handler: MouseHandler, duel: Duel, root_window: Window, client_obj: ClientObject): CombatHandler
 
 method process_id*(self: Client): int32 {.base.} =
   ## Client's process id
@@ -88,6 +92,19 @@ method login*(self: Client, username, password: string) {.base.} =
 method sendKey*(self: Client, key: int, seconds: float = 0.0) {.base, async.} =
   ## Send a key
   await timedSendKey(self.window_handle, key, seconds)
+
+method registerCombatHandler*(self: Client, cls: proc (mouse_handler: MouseHandler, duel: Duel, root_window: Window, client_obj: ClientObject): CombatHandler) =
+  self.combat_handler_cls = cls
+
+method inCombat*(self: Client): bool {.base.} =
+  # TODO: catch exception
+  self.duel.duelPhase() != DuelPhase.ended
+
+method waitForCombat*(self: Client) {.base, async.} =
+  waitOnValue(self.inCombat(), true)
+  if self.combat_handler_cls == nil:
+    raise newException(ValueError, "No combat handler registered")
+  let combat = self.combat_handler_cls(self.mouse_handler, self.duel, self.root_window, self.client_object)
 
 method patchInfiniteLoading(self: Client) {.base.} =
   if self.is_infinite_patched:

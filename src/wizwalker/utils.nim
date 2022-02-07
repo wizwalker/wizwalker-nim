@@ -192,6 +192,19 @@ proc waitForValue*[T](coro: proc(): Future[T], want: T, sleep_time: float = 0.1,
       else:
         raise e
 
+template waitOnValue*(body_expr, want: untyped, sleep_time: float = 0.1, ignore_errors: bool = true) =
+  ## Wait for a a specific value
+  while true:
+    try:
+      let val = body_expr
+      if val == want:
+        break
+    except Exception as e:
+      if ignore_errors:
+        await sleepAsync((sleep_time * 1000).int)
+      else:
+        raise e
+
 proc getWindowTitle*(handle: HWND, max_size: static[int] = 100): string =
   ## Get a window's title bar text.
   var buff = newWString(max_size)

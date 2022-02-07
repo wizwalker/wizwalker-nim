@@ -43,9 +43,6 @@ proc destroy(self: var Wad) =
     self.file_ptr = nil
     self.mapped_file.close()
 
-proc `destroy=`(self: var Wad) =
-  self.destroy()
-
 proc close*(self: WadRef) =
   ## Close the file handle. Normally this does not have to be used explicitly
   self[].destroy()

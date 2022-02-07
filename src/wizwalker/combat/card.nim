@@ -17,7 +17,7 @@ type
 
     stored_graphical_spell: GraphicalSpell
 
-proc initCombatCard(mouse_handler: MouseHandler, card_getter: proc (): seq[CombatCard], spell_window: Window): CombatCard =
+proc initCombatCard*(mouse_handler: MouseHandler, card_getter: proc (): seq[CombatCard], spell_window: Window): CombatCard =
   new(result)
   result.mouse_handler = mouse_handler
   result.card_getter = card_getter
