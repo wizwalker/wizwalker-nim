@@ -1,10 +1,8 @@
 import std/asyncdispatch
-import std/tables
 
 import ../src/wizwalker_nim/client
 import ../src/wizwalker_nim/mouse_handler
 import ../src/wizwalker_nim/client_handler
-import ../src/wizwalker_nim/memory/memory_objects/window
 
 proc main() {.async.} =
   var

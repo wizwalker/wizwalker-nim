@@ -1,7 +1,6 @@
 import asyncdispatch
 import options
 import algorithm
-import os
 
 import winim
 
