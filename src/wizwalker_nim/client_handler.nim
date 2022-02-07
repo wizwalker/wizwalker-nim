@@ -90,7 +90,7 @@ method activateAllClientHooks*(self: ClientHandler, wait_for_ready: bool = true)
 # TODO
 # method activateAllClientMouseless*(self: ClientHandler)
 
-method close*(self: ClientHandler) {.base, async.} =
+method close*(self: ClientHandler) {.base.} =
   for c in self.clients:
-    await c.close()
+    c.close()
 

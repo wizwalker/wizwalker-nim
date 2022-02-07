@@ -18,9 +18,9 @@ method activateMouseless*(self: MouseHandler) {.base, async.} =
   ## Activates the mouseless hook
   await self.hook_handler.activateMouselessHook()
 
-method deactivateMouseless*(self: MouseHandler) {.base, async.} =
+method deactivateMouseless*(self: MouseHandler) {.base.} =
   ## Deactivates the mouseless hook
-  await self.hook_handler.deactivateMouselessHook()
+  self.hook_handler.deactivateMouselessHook()
 
 method setMousePosition*(self: MouseHandler, x, y: int, convert_from_client: bool = true, use_post: bool = false) {.base.} =
   var

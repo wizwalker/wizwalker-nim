@@ -122,6 +122,6 @@ method activateHooks*(self: Client, wait_for_ready: bool = true, timeout: float 
   # TODO: Change this asap
   await self.hook_handler.activateAllHooks(wait_for_ready, timeout)
 
-method close*(self: Client) {.base, async.} =
+method close*(self: Client) {.base.} =
   ## Unhooks the client
-  await self.hook_handler.close()
+  self.hook_handler.close()

@@ -53,13 +53,12 @@ proc restoreAutobot(self: HookHandler) =
 proc allocateAutobotBytes(self: HookHandler, size: int): int =
   self.getAvailableAutobotAddress(size)
 
-proc close*(self: HookHandler) {.async.} = 
+proc close*(self: HookHandler) = 
   ## Closes the HookHandler instance
   self.is_hooked = false
   for h in self.active_hooks:
     h.unhook()
   self.active_hooks = @[]
-  await sleepAsync(1000) # So hooks have time to escape
   self.restoreAutobot()
   self.autobot_pos = 0
 
@@ -116,7 +115,7 @@ template createHookToggles*(typename: typed, exported: string) {.dirty.} =
     if wait_for_ready:
       await self.waitForValue(hook.export_addrs[exported], timeout)
 
-  proc `deactivate typename`*(self: HookHandler) {.async.} =
+  proc `deactivate typename`*(self: HookHandler) =
     if not self.checkIfHookActive(typename):
       let name = $typename
       raise newException(ValueError, &"Tried disabling {name} hook")
@@ -156,7 +155,7 @@ proc activateMouselessHook*(self: HookHandler) {.async.} =
   self.active_hooks.add(h)
   self.writeMousePosition(0, 0)
 
-proc deactivateMouselessHook*(self: HookHandler) {.async.} =
+proc deactivateMouselessHook*(self: HookHandler) =
   if not self.checkIfHookActive(MouselessHook):
     raise newException(ValueError, "MouselessHook is not active")
 
