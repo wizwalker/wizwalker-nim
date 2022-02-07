@@ -1,12 +1,12 @@
 import std/asyncdispatch
 import std/tables
 
-import ../src/client
-import ../src/client_handler
-import ../src/hotkey
-import ../src/constants
-import ../src/memory/memory_objects/actor_body
-import ../src/memory/memory_objects/quest_position
+import ../src/wizwalker_nim/client
+import ../src/wizwalker_nim/client_handler
+import ../src/wizwalker_nim/hotkey
+import ../src/wizwalker_nim/constants
+import ../src/wizwalker_nim/memory/memory_objects/actor_body
+import ../src/wizwalker_nim/memory/memory_objects/quest_position
 
 proc main() {.async.} =
   var

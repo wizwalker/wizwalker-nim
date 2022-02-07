@@ -5,6 +5,7 @@ import strutils
 
 import memory_handler
 import hooks
+import ../utils
 
 type
   HookHandler* = ref object of RootObj
@@ -136,6 +137,34 @@ createHookToggles(PlayerStatHook, "stat_addr")
 createHookToggles(ClientHook, "current_client_addr")
 createHookToggles(RootWindowHook, "current_root_window_addr")
 createHookToggles(RenderContextHook, "current_render_context_addr")
+
+proc writeMousePosition*(self: HookHandler, x, y: int) =
+  let address = self.base_addrs.getOrDefault("mouse_position", 0)
+  if address == 0:
+    raise newException(ValueError, "MouselessHook is not active")
+
+  let packed_pos = (y shl 32) or (x and 0xFFFFFFFF)
+  self.memory_handler.writeBytes(address, packed_pos.toBytes().toString())
+
+proc activateMouselessHook*(self: HookHandler) {.async.} =
+  if self.checkIfHookActive(MouselessHook):
+    raise newException(ValueError, "MouselessHook is already active")
+
+  let h = MouselessHook(memory_handler : self.memory_handler)
+  h.hook()
+  self.base_addrs["mouse_position"] = h.mouse_pos_addr
+  self.active_hooks.add(h)
+  self.writeMousePosition(0, 0)
+
+proc deactivateMouselessHook*(self: HookHandler) {.async.} =
+  if not self.checkIfHookActive(MouselessHook):
+    raise newException(ValueError, "MouselessHook is not active")
+
+  let hook = self.getHookByType(MouselessHook)
+  self.active_hooks.del(self.active_hooks.find(hook))
+  hook.unhook()
+
+  self.base_addrs.del("mouse_position")
 
 proc activateAllHooks*(self: HookHandler, wait_for_ready: bool = true, timeout: float = -1.0) {.async.} =
   ## Activate all hooks but mouseless

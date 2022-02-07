@@ -86,17 +86,19 @@ func relativeYaw*(self: XYZ, x, y=none(float)): float =
 
 func scaleToClient*(self: Rectangle, parents: seq[Rectangle], factor: float): Rectangle =
   ## Scale this rectangle base on parents and a scale factor
-  result.x1 = self.x1
-  result.x2 = self.y1
-
+  var
+    x_factor = self.x1
+    y_factor = self.y1
   for rect in parents:
-    result.x1 += rect.x1
-    result.x2 += rect.y1
+    x_factor += rect.x1
+    y_factor += rect.y1
+  x_factor = (x_factor.float * factor).int32
+  y_factor = (y_factor.float * factor).int32
 
-  result.x2 = (((self.x2 - self.x1).float * factor) + (result.x1.float * factor)).int32
-  result.y2 = (((self.y2 - self.y1).float * factor) + (result.y1.float * factor)).int32
-  result.x1 = (result.x1.float * factor).int32
-  result.y1 = (result.y1.float * factor).int32
+  result.x1 = x_factor
+  result.y1 = y_factor
+  result.x2 = x_factor + (factor * (self.x2 - self.x1).float).int32
+  result.y2 = y_factor + (factor * (self.y2 - self.y1).float).int32
 
 func center*(self: Rectangle): (int32, int32) =
   ## Get the center point of this rectangle

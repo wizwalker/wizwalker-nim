@@ -5,6 +5,7 @@ import tables
 
 import utils
 import constants
+import mouse_handler
 import memory/memory_handler
 import memory/handler
 import memory/memory_objects/game_stats
@@ -22,6 +23,8 @@ type
     memory_handler*: MemoryHandler
     hook_handler*: HookHandler
     process_handle*: HANDLE
+
+    mouse_handler*: MouseHandler
 
     stats*: CurrentGameStats
     body*: CurrentActorBody
@@ -50,6 +53,8 @@ proc initClient*(window_handle: HWND): Client =
   result.client_object = CurrentClientObject(memory_handler : result.memory_handler, hook_handler : result.hook_handler)
   result.root_window = CurrentRootWindow(memory_handler : result.memory_handler, hook_handler : result.hook_handler)
   result.render_context = CurrentRenderContext(memory_handler : result.memory_handler, hook_handler : result.hook_handler)
+  
+  result.mouse_handler = MouseHandler(window_handle : window_handle, hook_handler : result.hook_handler, root_window : result.root_window)
 
 method title*(self: Client): string {.base.} =
   ## Get the window title

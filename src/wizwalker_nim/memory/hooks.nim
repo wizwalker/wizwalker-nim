@@ -3,6 +3,8 @@ import strutils
 import tables
 import re
 
+import winim
+
 import ../utils
 import memory_handler
 
@@ -252,3 +254,42 @@ buildSimpleHook(
   "\x48\x89\xd8" & # mov rax,rbx
   "\x48\xA3" & exports[0][1].toBytes().toString() & # mov [current_ui_scale_addr],rax
   "\x58" # pop rax
+
+type MouselessHook* = ref object of MemoryHook
+  mouse_pos_addr*: ByteAddress
+  toggle_bool_addrs*: (ByteAddress, ByteAddress)
+  original_bytes: string # size: 16
+
+method hook*(self: MouselessHook) =
+  let get_cursor_pos_addr = cast[ByteAddress](GetProcAddress(GetModuleHandle("user32.dll"), "GetCursorPos"))
+  self.original_bytes = self.memory_handler.readBytes(get_cursor_pos_addr, 16)
+  self.mouse_pos_addr = self.memory_handler.allocate(8)
+  self.memory_handler.writeBytes(get_cursor_pos_addr,
+    "\x50" & # push rax
+    "\x48\xA1" & self.mouse_pos_addr.toBytes().toString() & # mov rax, mouse_pos
+    "\x48\x89\x01" & # mov [rcx], rax
+    "\x58" & # pop rax
+    "\xC3" # ret
+  )
+
+  if self.toggle_bool_addrs[0] == 0:
+    # These patterns are sus
+    let 
+      bool_one_address = self.memory_handler.patternScan("(?s)" & escapeByteRegex("..\x50\x18\x66\xC7"), module="WizardGraphicalClient.exe")
+      bool_two_address = self.memory_handler.patternScan("(?s)" & escapeByteRegex("\xC6\x86.....\x33\xFF"), module="WizardGraphicalClient.exe")
+
+    if bool_one_address.len() == 0 or bool_two_address.len() == 0:
+      raise newException(ResourceExhaustedError, "One of the mouseless bool toggles broke")
+
+    self.toggle_bool_addrs = (bool_one_address[0], bool_two_address[0] + 6)
+
+  self.memory_handler.writeBytes(self.toggle_bool_addrs[0], "\x01")
+  self.memory_handler.writeBytes(self.toggle_bool_addrs[1], "\x01")
+
+method unhook*(self: MouselessHook) =
+  let get_cursor_pos_addr = cast[ByteAddress](GetProcAddress(GetModuleHandle("user32.dll"), "GetCursorPos"))
+  self.memory_handler.writeBytes(get_cursor_pos_addr, self.original_bytes)
+  self.memory_handler.free(self.mouse_pos_addr)
+
+  self.memory_handler.writeBytes(self.toggle_bool_addrs[0], "\x00")
+  self.memory_handler.writeBytes(self.toggle_bool_addrs[1], "\x00")
